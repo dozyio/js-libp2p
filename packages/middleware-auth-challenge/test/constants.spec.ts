@@ -26,4 +26,3 @@ describe('Constants', () => {
     expect(CHALLENGE_SIZE).to.be.at.least(16) // At least 16 bytes for security
   })
 })
-

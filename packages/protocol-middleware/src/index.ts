@@ -49,6 +49,7 @@
  */
 
 import { ProtocolMiddlewareService as ProtocolMiddlewareServiceImpl } from './protocol-middleware-service.js'
+import type { AuthenticationProvider } from './authentication-provider.js'
 import type { MiddlewareWrapperOptions } from './middleware-wrapper.js'
 import type { ProtectedService, ProtocolMiddlewareServiceInit, ProtocolMiddlewareServiceComponents } from './protocol-middleware-service.js'
 import type { AbortOptions, ComponentLogger, PeerId, PeerStore } from '@libp2p/interface'
@@ -98,6 +99,76 @@ export interface FullProtocolMiddlewareComponents extends ProtocolMiddlewareServ
  */
 export function createProtocolMiddleware (init: ProtocolMiddlewareServiceInit): (components: FullProtocolMiddlewareComponents) => ProtocolMiddlewareService {
   return (components) => new ProtocolMiddlewareServiceImpl(components, init)
+}
+
+/**
+ * Create the protocol middleware with a simplified API for libp2p services
+ *
+ * This is a utility function that's easier to use with libp2p service components
+ */
+export function createLibp2pMiddleware (options: {
+  provider: AuthenticationProvider
+  autoAuthenticate?: boolean
+  // Allow passing service names to protect
+  protectedServices?: Record<string, any>
+  authOptions?: Record<string, MiddlewareWrapperOptions>
+}) {
+  // Create a set to track service names to protect
+  const serviceNames = new Set<string>()
+  
+  // Store service names from protected services
+  if (options.protectedServices != null) {
+    for (const name of Object.keys(options.protectedServices)) {
+      serviceNames.add(name)
+    }
+  }
+  
+  // Return a factory function compatible with libp2p services
+  return (components: any) => {
+    // Create the middleware service
+    const middleware = new ProtocolMiddlewareServiceImpl(components, {
+      provider: options.provider,
+      autoAuthenticate: options.autoAuthenticate
+    })
+    
+    // Initialize middleware and protect existing services
+    // We delay protection to ensure libp2p has fully initialized all services and handlers
+    ;(async () => {
+      // Start the middleware first
+      await middleware.start()
+      
+      // Add a small delay to ensure all libp2p services have fully initialized
+      // This helps avoid race conditions with handler registration
+      await new Promise(resolve => setTimeout(resolve, 100))
+      
+      // Process services in sequence to avoid race conditions
+      for (const name of serviceNames) {
+        // Get the service that was initialized by libp2p
+        const service = components[name]
+        
+        if (service != null) {
+          try {
+            // Protect the service with middleware
+            await middleware.protectService(name, service, options.authOptions?.[name])
+            console.log(`Protected service ${name} with authentication`)
+          } catch (err) {
+            // Handle errors (probably service already registered)
+            console.error(`Failed to protect service ${name}:`, err)
+          }
+          
+          // Add a small delay between service protection to reduce contention
+          await new Promise(resolve => setTimeout(resolve, 20))
+        } else {
+          console.warn(`Service ${name} not found for protection`)
+        }
+      }
+    })().catch(err => {
+      // Use console.error as a fallback if middleware logger isn't accessible
+      console.error('Failed to initialize protocol middleware:', err)
+    })
+    
+    return middleware
+  }
 }
 
 // Export functions
