@@ -110,7 +110,7 @@ describe('ProtocolMiddlewareService', () => {
   describe('start', () => {
     it('should start the service with no protected services', async () => {
       await sut.start()
-      
+
       expect(sut.isStarted()).to.be.true()
       expect(mockAuthProvider.start.callCount).to.be.at.least(1)
       expect(mockRegistrar.handle.callCount).to.equal(0)
@@ -125,11 +125,11 @@ describe('ProtocolMiddlewareService', () => {
       })
 
       await sut.start()
-      
+
       expect(sut.isStarted()).to.be.true()
       expect(mockAuthProvider.start.callCount).to.be.at.least(1)
       expect(mockRegistrar.handle.callCount).to.be.at.least(1)
-      
+
       // Check arguments for first call
       const handleArgs = mockRegistrar.handle.firstCall.args
       expect(handleArgs[0]).to.equal(mockService.protocol)
@@ -154,7 +154,7 @@ describe('ProtocolMiddlewareService', () => {
       })
 
       await sut.start()
-      
+
       expect(sut.isStarted()).to.be.true()
       expect(mockRegistrar.handle.callCount).to.equal(0)
       expect(mockLogger.error.callCount).to.be.at.least(1)
@@ -196,7 +196,7 @@ describe('ProtocolMiddlewareService', () => {
     it('should stop the service with no protected services', async () => {
       await sut.start()
       await sut.stop()
-      
+
       expect(sut.isStarted()).to.be.false()
       expect(mockAuthProvider.stop.callCount).to.be.at.least(1)
       expect(mockRegistrar.unhandle.callCount).to.equal(0)
@@ -212,7 +212,7 @@ describe('ProtocolMiddlewareService', () => {
 
       await sut.start()
       await sut.stop()
-      
+
       expect(sut.isStarted()).to.be.false()
       expect(mockAuthProvider.stop.callCount).to.be.at.least(1)
       expect(mockRegistrar.unhandle.callCount).to.be.at.least(1)
@@ -231,7 +231,7 @@ describe('ProtocolMiddlewareService', () => {
 
       await sut.start()
       await sut.stop()
-      
+
       expect(sut.isStarted()).to.be.false()
       expect(mockAuthProvider.stop.callCount).to.be.at.least(1)
       expect(mockLogger.error.callCount).to.be.at.least(1)
@@ -249,9 +249,9 @@ describe('ProtocolMiddlewareService', () => {
 
     it('should call provider.authenticate', async () => {
       await sut.start()
-      
+
       const result = await sut.authenticate(connectionId)
-      
+
       expect(result).to.be.true()
       expect(mockAuthProvider.authenticate.callCount).to.be.at.least(1)
       expect(mockAuthProvider.authenticate.firstCall.args[0]).to.equal(connectionId)
@@ -259,13 +259,13 @@ describe('ProtocolMiddlewareService', () => {
 
     it('should pass abort options to provider.authenticate', async () => {
       await sut.start()
-      
+
       const abortOptions: AbortOptions = {
         signal: new AbortController().signal
       }
-      
+
       await sut.authenticate(connectionId, abortOptions)
-      
+
       expect(mockAuthProvider.authenticate.lastCall.args[0]).to.equal(connectionId)
       expect(mockAuthProvider.authenticate.lastCall.args[1]).to.equal(abortOptions)
     })
@@ -281,9 +281,9 @@ describe('ProtocolMiddlewareService', () => {
 
     it('should call provider.isAuthenticated', async () => {
       await sut.start()
-      
+
       const result = sut.isAuthenticated(connectionId)
-      
+
       expect(result).to.be.true()
       expect(mockAuthProvider.isAuthenticated.callCount).to.be.at.least(1)
       expect(mockAuthProvider.isAuthenticated.lastCall.args[0]).to.equal(connectionId)
@@ -291,11 +291,11 @@ describe('ProtocolMiddlewareService', () => {
 
     it('should return false if provider returns false', async () => {
       mockAuthProvider.isAuthenticated.returns(false)
-      
+
       await sut.start()
-      
+
       const result = sut.isAuthenticated(connectionId)
-      
+
       expect(result).to.be.false()
     })
   })
@@ -309,7 +309,7 @@ describe('ProtocolMiddlewareService', () => {
 
     it('should throw if service is missing required properties', async () => {
       await sut.start()
-      
+
       await expect(sut.protectService('invalidService', {} as any)).to.eventually.be.rejected()
         .with.property('message')
         .that.include('doesn\'t have required protocol or handleMessage properties')
@@ -317,9 +317,9 @@ describe('ProtocolMiddlewareService', () => {
 
     it('should throw if protocol is already registered', async () => {
       mockRegistrar.getHandler.returns({})
-      
+
       await sut.start()
-      
+
       await expect(sut.protectService('testService', mockService)).to.eventually.be.rejected()
         .with.property('message')
         .that.include('already registered')
@@ -327,11 +327,11 @@ describe('ProtocolMiddlewareService', () => {
 
     it('should protect a service with default options', async () => {
       await sut.start()
-      
+
       await sut.protectService('testService', mockService)
-      
+
       expect(mockRegistrar.handle.callCount).to.be.at.least(1)
-      
+
       // Check arguments for last call
       const handleArgs = mockRegistrar.handle.lastCall.args
       expect(handleArgs[0]).to.equal(mockService.protocol)
@@ -344,9 +344,9 @@ describe('ProtocolMiddlewareService', () => {
 
     it('should protect a service with custom options', async () => {
       await sut.start()
-      
+
       await sut.protectService('testService', mockService, { autoAuthenticate: false })
-      
+
       expect(mockRegistrar.handle.callCount).to.be.at.least(1)
     })
   })
@@ -360,7 +360,7 @@ describe('ProtocolMiddlewareService', () => {
 
     it('should throw if service is not protected', async () => {
       await sut.start()
-      
+
       await expect(sut.unprotectService('unknownService')).to.eventually.be.rejected()
         .with.property('message')
         .that.include('not protected')
@@ -373,10 +373,10 @@ describe('ProtocolMiddlewareService', () => {
           testService: mockService
         }
       })
-      
+
       await sut.start()
       await sut.unprotectService('testService')
-      
+
       expect(mockRegistrar.unhandle.callCount).to.be.at.least(1)
       expect(mockRegistrar.unhandle.lastCall.args[0]).to.equal(mockService.protocol)
     })

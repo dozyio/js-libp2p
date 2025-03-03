@@ -115,14 +115,14 @@ export function createLibp2pMiddleware (options: {
 }) {
   // Create a set to track service names to protect
   const serviceNames = new Set<string>()
-  
+
   // Store service names from protected services
   if (options.protectedServices != null) {
     for (const name of Object.keys(options.protectedServices)) {
       serviceNames.add(name)
     }
   }
-  
+
   // Return a factory function compatible with libp2p services
   return (components: any) => {
     // Create the middleware service
@@ -130,43 +130,91 @@ export function createLibp2pMiddleware (options: {
       provider: options.provider,
       autoAuthenticate: options.autoAuthenticate
     })
-    
+
+    // Set up automatic authentication of new connections
+    // Check if the connection manager has an event emitter 
+    if (typeof components.connectionManager.on === 'function') {
+      // Use Node.js style event emitter
+      components.connectionManager.on('connection:open', (connection: any) => {
+        const connectionId = connection.id || (connection.detail && connection.detail.id)
+        if (connectionId) {
+          // eslint-disable-next-line no-console
+          console.log(`New connection opened, initiating mutual authentication: ${connectionId}`)
+          
+          // First, authenticate the remote peer
+          middleware.authenticate(connectionId).then(result => {
+            if (result) {
+              // eslint-disable-next-line no-console
+              console.log(`Connection ${connectionId.slice(0, 8)} authenticated successfully`)
+            } else {
+              // eslint-disable-next-line no-console
+              console.log(`Connection ${connectionId.slice(0, 8)} authentication failed`)
+            }
+          }).catch(err => {
+            // eslint-disable-next-line no-console
+            console.error(`Authentication error for ${connectionId.slice(0, 8)}: ${err.message}`)
+          })
+        }
+      })
+    }
+
     // Initialize middleware and protect existing services
     // We delay protection to ensure libp2p has fully initialized all services and handlers
     ;(async () => {
-      // Start the middleware first
-      await middleware.start()
-      
-      // Add a small delay to ensure all libp2p services have fully initialized
-      // This helps avoid race conditions with handler registration
-      await new Promise(resolve => setTimeout(resolve, 100))
-      
-      // Process services in sequence to avoid race conditions
-      for (const name of serviceNames) {
-        // Get the service that was initialized by libp2p
-        const service = components[name]
-        
-        if (service != null) {
-          try {
-            // Protect the service with middleware
-            await middleware.protectService(name, service, options.authOptions?.[name])
-            console.log(`Protected service ${name} with authentication`)
-          } catch (err) {
-            // Handle errors (probably service already registered)
-            console.error(`Failed to protect service ${name}:`, err)
+      try {
+        // Add services to the middleware's map right away - important!
+        for (const name of serviceNames) {
+          const service = components[name]
+          if (service != null) {
+            // eslint-disable-next-line no-console
+            console.log(`📋 Registering service ${name} with middleware`)
+            middleware.services.set(name, { 
+              service,
+              authOptions: options.authOptions?.[name] 
+            })
           }
-          
-          // Add a small delay between service protection to reduce contention
-          await new Promise(resolve => setTimeout(resolve, 20))
-        } else {
-          console.warn(`Service ${name} not found for protection`)
         }
+
+        // Start the middleware after registering services
+        // eslint-disable-next-line no-console
+        console.log('🚀 Starting protocol middleware')
+        await middleware.start()
+        
+        // Add a small delay to ensure all libp2p services have fully initialized
+        // This helps avoid race conditions with handler registration
+        await new Promise(resolve => setTimeout(resolve, 100))
+        
+        // Process services in sequence to avoid race conditions
+        for (const name of serviceNames) {
+          // Get the service that was initialized by libp2p
+          const service = components[name]
+  
+          if (service != null) {
+            try {
+              // Protect the service with middleware
+              // eslint-disable-next-line no-console
+              console.log(`🛡️ Protecting service ${name} with authentication`)
+              await middleware.protectService(name, service, options.authOptions?.[name])
+              // eslint-disable-next-line no-console
+              console.log(`✅ Service ${name} protected successfully`)
+            } catch (err) {
+              // eslint-disable-next-line no-console
+              console.error(`❌ Error protecting service ${name}:`, err)
+            }
+  
+            // Add a small delay between service protection to reduce contention
+            await new Promise(resolve => setTimeout(resolve, 20))
+          } else {
+            // eslint-disable-next-line no-console
+            console.warn(`⚠️ Service ${name} not found for protection`)
+          }
+        }
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error('❌ Failed to initialize protocol middleware:', err)
       }
-    })().catch(err => {
-      // Use console.error as a fallback if middleware logger isn't accessible
-      console.error('Failed to initialize protocol middleware:', err)
-    })
-    
+    })()
+
     return middleware
   }
 }

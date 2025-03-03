@@ -22,7 +22,7 @@ export class ProtocolMiddlewareService implements Startable {
   private readonly provider: AuthenticationProvider
   private readonly log: Logger
   private started: boolean
-  public readonly protectedServices: Map<string, {
+  public readonly services: Map<string, {
     service: ProtectedService
     authOptions?: MiddlewareWrapperOptions
   }>
@@ -34,12 +34,19 @@ export class ProtocolMiddlewareService implements Startable {
     this.components = components
     this.log = components.logger.forComponent('libp2p:protocol-middleware')
     this.started = false
+
+    // Set the provider components directly
+    const provider = init.provider as any
+    provider.components = {
+      registrar: components.registrar,
+      connectionManager: components.connectionManager,
+      logger: components.logger
+    }
+
+    // Store the provider
     this.provider = init.provider
 
-    // Set components on the provider (fixes issue with missing components)
-    ;(this.provider as any).components = components
-
-    this.protectedServices = new Map()
+    this.services = new Map()
     this.serviceHandlers = new Map()
 
     // Default options for middleware
@@ -47,10 +54,10 @@ export class ProtocolMiddlewareService implements Startable {
       autoAuthenticate: init.autoAuthenticate ?? true
     }
 
-    // Store protected services if provided
+    // Store services if provided
     if (init.protectedServices != null) {
       for (const [name, service] of Object.entries(init.protectedServices)) {
-        this.protectedServices.set(name, {
+        this.services.set(name, {
           service,
           authOptions: init.authOptions?.[name] ?? this.defaultAuthOptions
         })
@@ -64,27 +71,38 @@ export class ProtocolMiddlewareService implements Startable {
     // Start the authentication provider
     await this.provider.start()
 
-    // Check for conflicts and set up protected services
-    for (const [name, { service, authOptions }] of this.protectedServices.entries()) {
+    // Check for conflicts and set up services
+    for (const [name, { service, authOptions }] of this.services.entries()) {
       if (service.protocol == null || typeof service.handleMessage !== 'function') {
         this.log.error(`Service ${name} doesn't have required protocol or handleMessage properties`)
         continue
       }
 
       try {
-        // Check if protocol is already registered directly
+        // Get existing handler if protocol is already registered
+        let existingHandler: any = null
+        let isAlreadyRegistered = false
+        
         try {
-          this.components.registrar.getHandler(service.protocol)
-
-          // If we get here, the protocol is already registered
-          throw new Error(
-            `Protocol ${service.protocol} is already registered directly with libp2p. ` +
-            'A service cannot be both protected and unprotected at the same time. ' +
-            'Either remove it from the protectedServices list or don\'t register it directly.'
-          )
+          // Check if this protocol is already registered
+          const handlerInfo = this.components.registrar.getHandler(service.protocol)
+          isAlreadyRegistered = true
+          existingHandler = handlerInfo.handler
+          this.log(`Protocol ${service.protocol} is already registered - will temporarily unregister it`)
         } catch (err: any) {
           // If it's an UnhandledProtocolError, that's good - it means the protocol isn't registered yet
           if (err.name !== 'UnhandledProtocolError') {
+            throw err
+          }
+        }
+        
+        // If protocol is already registered, unregister it first
+        if (isAlreadyRegistered) {
+          try {
+            await this.components.registrar.unhandle(service.protocol)
+            this.log(`Successfully unregistered existing handler for ${service.protocol}`)
+          } catch (err) {
+            this.log.error(`Failed to unregister existing handler for ${service.protocol}: %o`, err)
             throw err
           }
         }
@@ -100,11 +118,37 @@ export class ProtocolMiddlewareService implements Startable {
           authOptions ?? this.defaultAuthOptions
         )
 
-        // Register the protected handler
-        await this.components.registrar.handle(service.protocol, protectedHandler, {
-          maxInboundStreams: service.maxInboundStreams,
-          maxOutboundStreams: service.maxOutboundStreams
-        })
+        // Try to register the protected handler with retry logic
+        let success = false
+        let attempts = 0
+        const maxAttempts = 3
+        
+        while (!success && attempts < maxAttempts) {
+          attempts++
+          try {
+            // Small delay if this is a retry
+            if (attempts > 1) {
+              this.log(`Retry ${attempts} for registering protected handler for ${service.protocol}`)
+              await new Promise(resolve => setTimeout(resolve, 50))
+            }
+            
+            // Try to register with force option to override any existing handler
+            await this.components.registrar.handle(service.protocol, protectedHandler, {
+              maxInboundStreams: service.maxInboundStreams,
+              maxOutboundStreams: service.maxOutboundStreams,
+              force: true
+            })
+            
+            success = true
+            this.log(`Successfully registered protected handler for ${service.protocol} (attempt ${attempts})`)
+          } catch (err) {
+            if (attempts === maxAttempts) {
+              this.log.error(`Failed to register protected handler after ${maxAttempts} attempts: %o`, err)
+              throw err
+            }
+            this.log.error(`Failed to register protected handler (attempt ${attempts}): %o`, err)
+          }
+        }
 
         this.log(`Protected service ${name} (${service.protocol}) with authentication`)
       } catch (err) {
@@ -117,11 +161,11 @@ export class ProtocolMiddlewareService implements Startable {
   }
 
   async stop (): Promise<void> {
-    // Unregister protected services
-    for (const [name, { service }] of this.protectedServices.entries()) {
+    // Unregister services
+    for (const [name, { service }] of this.services.entries()) {
       try {
         if (service.protocol != null) {
-          // Unregister protected handler
+          // Unregister handler
           await this.components.registrar.unhandle(service.protocol)
 
           this.log(`Unprotected service ${name} (${service.protocol})`)
@@ -171,9 +215,9 @@ export class ProtocolMiddlewareService implements Startable {
       throw new Error('Protocol middleware service is not started')
     }
 
-    // Check if this service is already protected
-    if (this.protectedServices.has(name)) {
-      this.log(`Service ${name} is already protected. Skipping duplicate protection`)
+    // Check if this service is already registered
+    if (this.services.has(name)) {
+      this.log(`Service ${name} is already registered. Skipping duplicate registration`)
       return
     }
 
@@ -192,15 +236,17 @@ export class ProtocolMiddlewareService implements Startable {
       }
     }
 
-    // DEBUG: Log service structure
-    console.log(`Protecting service '${name}':`, {
-      keys: Object.keys(service),
-      hasProtocol: service.protocol != null,
-      hasHandleMessage: typeof service.handleMessage === 'function',
-      hasMulticodecs: service.multicodecs != null && Array.isArray(service.multicodecs),
-      hasHandle: typeof service.handle === 'function',
-      serviceType: service.constructor?.name || 'unknown'
-    })
+    // Log service structure for debugging
+    this.log(`Protecting service '${name}': ${
+      JSON.stringify({
+        keys: Object.keys(service),
+        hasProtocol: service.protocol != null,
+        hasHandleMessage: typeof service.handleMessage === 'function',
+        hasMulticodecs: service.multicodecs != null && Array.isArray(service.multicodecs),
+        hasHandle: typeof service.handle === 'function',
+        serviceType: service.constructor != null ? service.constructor.name : 'unknown'
+      })
+    }`)
 
     // For ping and identify, we need to manually set their protocols
     if (name === 'ping') {
@@ -261,11 +307,11 @@ export class ProtocolMiddlewareService implements Startable {
         this.log('No identify handler found, closing stream')
         stream.close()
       }
-    } else if (service.registrar?.getHandler) {
+    } else if (service.registrar != null && typeof service.registrar.getHandler === 'function') {
       // Try getting the handler from the registrar
       try {
         const handler = service.registrar.getHandler(protocol)
-        if (handler?.handler) {
+        if (handler != null && handler.handler != null) {
           handleMessage = handler.handler
         }
       } catch (err) {
@@ -274,7 +320,7 @@ export class ProtocolMiddlewareService implements Startable {
     }
 
     // For testing purposes, create a dummy handler if none was found
-    if (!handleMessage) {
+    if (handleMessage == null) {
       this.log(`Could not find handler for ${name}, creating a dummy one`)
       handleMessage = (data: any) => {
         const { stream } = data
@@ -283,10 +329,12 @@ export class ProtocolMiddlewareService implements Startable {
     }
 
     // Debug info about the handler
-    console.log(`Found handler for '${name}' with protocol '${protocol}'`, {
-      handlerType: typeof handleMessage,
-      handlerName: handleMessage?.name
-    })
+    this.log(`Found handler for '${name}' with protocol '${protocol}': ${
+      JSON.stringify({
+        handlerType: typeof handleMessage,
+        handlerName: handleMessage != null ? handleMessage.name : undefined
+      })
+    }`)
 
     // First, verify if this protocol is already registered by another handler
     let isAlreadyRegistered = false
@@ -339,7 +387,7 @@ export class ProtocolMiddlewareService implements Startable {
     if (isAlreadyRegistered) {
       try {
         // Based on the registrar implementation, we can use the force option to override an existing handler
-        console.log(`Using force option to override existing handler for ${protocol}`)
+        this.log(`Using force option to override existing handler for ${protocol}`)
 
         // Register with force option to replace the existing handler
         await this.components.registrar.handle(protocol, protectedHandler, {
@@ -349,15 +397,15 @@ export class ProtocolMiddlewareService implements Startable {
         })
 
         registered = true
-        console.log(`Successfully registered protected handler for ${protocol} with force option`)
+        this.log(`Successfully registered protected handler for ${protocol} with force option`)
       } catch (err: any) {
-        console.error(`Error using force option for ${protocol}:`, err.message)
+        this.log.error(`Error using force option for ${protocol}: ${err.message}`)
 
         // Try the original approach as fallback
         try {
           // Step 1: Unregister the existing handler
           await this.components.registrar.unhandle(protocol)
-          console.log(`Successfully unregistered protocol ${protocol}`)
+          this.log(`Successfully unregistered protocol ${protocol}`)
 
           // Add a tiny delay to ensure unregister completes
           await new Promise(resolve => setTimeout(resolve, 5))
@@ -369,9 +417,9 @@ export class ProtocolMiddlewareService implements Startable {
           })
 
           registered = true
-          console.log(`Successfully registered protected handler for ${protocol} after unregister`)
+          this.log(`Successfully registered protected handler for ${protocol} after unregister`)
         } catch (secondErr: any) {
-          console.error(`Error during handler swap for ${protocol}:`, secondErr.message)
+          this.log.error(`Error during handler swap for ${protocol}: ${secondErr.message}`)
 
           // If we failed to register after unregistering, try to restore the original handler
           if (!registered && existingHandler != null) {
@@ -381,9 +429,9 @@ export class ProtocolMiddlewareService implements Startable {
                 maxOutboundStreams: wrappedService.maxOutboundStreams,
                 force: true // Use force option to ensure restoration
               })
-              console.log(`Restored original handler for ${protocol}`)
+              this.log(`Restored original handler for ${protocol}`)
             } catch (restoreErr: any) {
-              console.error(`Failed to restore original handler for ${protocol}:`, restoreErr.message)
+              this.log.error(`Failed to restore original handler for ${protocol}: ${restoreErr.message}`)
             }
           }
         }
@@ -397,12 +445,12 @@ export class ProtocolMiddlewareService implements Startable {
         })
 
         registered = true
-        console.log(`Successfully registered protected handler for ${protocol}`)
+        this.log(`Successfully registered protected handler for ${protocol}`)
       } catch (err: any) {
-        console.error('Error registering handler with component registrar:', err.message)
+        this.log.error(`Error registering handler with component registrar: ${err.message}`)
 
         // Fallback: try registering directly through the service if it has a registrar
-        if (service.registrar?.handle) {
+        if (service.registrar != null && typeof service.registrar.handle === 'function') {
           try {
             await service.registrar.handle(protocol, protectedHandler, {
               maxInboundStreams: wrappedService.maxInboundStreams,
@@ -410,9 +458,9 @@ export class ProtocolMiddlewareService implements Startable {
             })
 
             registered = true
-            console.log('Successfully registered protected handler via service registrar')
+            this.log('Successfully registered protected handler via service registrar')
           } catch (innerErr: any) {
-            console.error('Error registering via service registrar:', innerErr.message)
+            this.log.error(`Error registering via service registrar: ${innerErr.message}`)
           }
         }
       }
@@ -420,9 +468,9 @@ export class ProtocolMiddlewareService implements Startable {
 
     if (registered) {
       // Store service and handler references only if successfully registered
-      this.protectedServices.set(name, { service: wrappedService, authOptions })
+      this.services.set(name, { service: wrappedService, authOptions })
       this.serviceHandlers.set(protocol, handleMessage)
-      this.log(`Protected service ${name} (${protocol}) with authentication`)
+      this.log(`Registered service ${name} (${protocol}) with authentication`)
     } else {
       const err = new Error(`Failed to protect service ${name}: Could not register protocol handler`)
       this.log.error(err.message)
@@ -438,9 +486,9 @@ export class ProtocolMiddlewareService implements Startable {
       throw new Error('Protocol middleware service is not started')
     }
 
-    const serviceInfo = this.protectedServices.get(name)
+    const serviceInfo = this.services.get(name)
     if (serviceInfo == null) {
-      throw new Error(`Service ${name} is not protected`)
+      throw new Error(`Service ${name} is not registered`)
     }
 
     const { service } = serviceInfo
@@ -449,11 +497,11 @@ export class ProtocolMiddlewareService implements Startable {
       // Unregister protected handler
       await this.components.registrar.unhandle(service.protocol)
 
-      // Remove from protected services
-      this.protectedServices.delete(name)
+      // Remove from services
+      this.services.delete(name)
       this.serviceHandlers.delete(service.protocol)
 
-      this.log(`Unprotected service ${name} (${service.protocol})`)
+      this.log(`Unregistered service ${name} (${service.protocol})`)
     } catch (err: any) {
       this.log.error(`Error unprotecting service ${name}: ${err.message}`)
       throw err
@@ -467,6 +515,7 @@ export class ProtocolMiddlewareService implements Startable {
 export interface ProtocolMiddlewareServiceComponents {
   registrar: any // Registrar interface
   logger: any // ComponentLogger interface
+  connectionManager: any // ConnectionManager interface
 }
 
 /**

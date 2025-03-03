@@ -7,7 +7,7 @@ interface MockAuthProviderOptions {
   // How long to wait before returning (simulates network delay)
   delay?: number
   // Custom authentication function
-  customAuthenticator?: (connectionId: string, options?: AbortOptions) => Promise<boolean>
+  customAuthenticator?(connectionId: string, options?: AbortOptions): Promise<boolean>
   // Provider name and ID
   id?: string
   name?: string
@@ -16,10 +16,10 @@ interface MockAuthProviderOptions {
 /**
  * Creates a mock authentication provider for testing
  */
-export function mockAuthProvider(options: MockAuthProviderOptions = {}): AuthenticationProvider {
+export function mockAuthProvider (options: MockAuthProviderOptions = {}): AuthenticationProvider {
   // Store authenticated connections
   const authenticatedConnections = new Set<string>()
-  
+
   // Default options
   const opts = {
     // Whether authentication always succeeds (for testing)
@@ -33,66 +33,66 @@ export function mockAuthProvider(options: MockAuthProviderOptions = {}): Authent
     name: 'Mock Auth Provider',
     ...options
   }
-  
+
   return {
     /**
      * Provider ID
      */
-    get id() { return opts.id },
+    get id () { return opts.id },
 
     /**
      * Provider name
      */
-    get name() { return opts.name },
+    get name () { return opts.name },
 
     /**
      * Start the provider
      */
-    async start(): Promise<void> {
+    async start (): Promise<void> {
       // Nothing to do for mock
     },
-    
+
     /**
      * Stop the provider
      */
-    async stop(): Promise<void> {
+    async stop (): Promise<void> {
       // Clear authenticated connections
       authenticatedConnections.clear()
     },
-    
+
     /**
      * Authenticate a connection
      */
-    async authenticate(connectionId: string, options?: AbortOptions): Promise<boolean> {
+    async authenticate (connectionId: string, options?: AbortOptions): Promise<boolean> {
       // Simulate network delay
       if (opts.delay > 0) {
         await new Promise(resolve => setTimeout(resolve, opts.delay))
       }
-      
+
       // Use custom authenticator if provided
       if (typeof opts.customAuthenticator === 'function') {
         const result = await opts.customAuthenticator(connectionId, options)
-        
+
         if (result) {
           authenticatedConnections.add(connectionId)
         }
-        
+
         return result
       }
-      
+
       // Default behavior - always success or based on options
       if (opts.alwaysSuccess) {
         authenticatedConnections.add(connectionId)
         return true
       }
-      
+
       return false
     },
-    
+
     /**
      * Check if a connection is authenticated
      */
-    isAuthenticated(connectionId: string): boolean {
+    isAuthenticated (connectionId: string): boolean {
       return authenticatedConnections.has(connectionId)
     }
   }

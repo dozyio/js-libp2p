@@ -14,7 +14,7 @@ describe('middleware-wrapper', () => {
   beforeEach(() => {
     // Setup mocks
     mockHandler = sinon.stub()
-    
+
     mockAuthService = {
       authenticate: sinon.stub().resolves(true),
       isAuthenticated: sinon.stub().returns(false),
@@ -26,7 +26,7 @@ describe('middleware-wrapper', () => {
       id: 'mock-auth',
       name: 'Mock Auth Service'
     }
-    
+
     mockStream = {
       id: 'test-stream-id',
       abort: sinon.stub(),
@@ -36,7 +36,7 @@ describe('middleware-wrapper', () => {
       sink: async (source: any) => { /* empty */ },
       metadata: new Map()
     }
-    
+
     mockConnection = {
       id: 'test-connection-id',
       remotePeer: {
@@ -67,20 +67,20 @@ describe('middleware-wrapper', () => {
   describe('createMiddlewareWrapper', () => {
     it('should create a middleware wrapper function', () => {
       const wrapper = createMiddlewareWrapper(mockAuthService, mockHandler)
-      
+
       expect(wrapper).to.be.a('function')
     })
 
     it('should call handler directly if connection is authenticated', () => {
       // Setup connection as authenticated
       mockAuthService.isAuthenticated.returns(true)
-      
+
       const wrapper = createMiddlewareWrapper(mockAuthService, mockHandler)
       const data = { connection: mockConnection, stream: mockStream }
-      
+
       // Call the wrapper
       wrapper(data)
-      
+
       // Verify the handler was called directly
       expect(mockHandler.callCount).to.equal(1)
       expect(mockHandler.firstCall.args[0]).to.equal(data)
@@ -91,34 +91,34 @@ describe('middleware-wrapper', () => {
     it('should abort the stream if connection is not authenticated and autoAuthenticate is false', () => {
       // Setup connection as not authenticated
       mockAuthService.isAuthenticated.returns(false)
-      
+
       const wrapper = createMiddlewareWrapper(mockAuthService, mockHandler, { autoAuthenticate: false })
       const data = { connection: mockConnection, stream: mockStream }
-      
+
       // Call the wrapper
       wrapper(data)
-      
+
       // Verify the stream was aborted and handler not called
       expect(mockStream.abort.callCount).to.equal(1)
       expect(mockHandler.callCount).to.equal(0)
       expect(mockAuthService.authenticate.callCount).to.equal(0)
     })
 
-    it('should initiate authentication if connection is not authenticated and autoAuthenticate is true', () => {
+    it('should initiate authentication if connection is not authenticated and autoAuthenticate is true', async () => {
       // Setup connection as not authenticated initially but authentication will succeed
       mockAuthService.isAuthenticated.returns(false)
       mockAuthService.authenticate.resolves(true)
-      
+
       const wrapper = createMiddlewareWrapper(mockAuthService, mockHandler, { autoAuthenticate: true })
       const data = { connection: mockConnection, stream: mockStream }
-      
+
       // Call the wrapper
       wrapper(data)
-      
+
       // Verify authentication was attempted
       expect(mockAuthService.authenticate.callCount).to.equal(1)
       expect(mockAuthService.authenticate.firstCall.args[0]).to.equal(mockConnection.id)
-      
+
       // Since authentication happens asynchronously, we need to wait for it
       return new Promise<void>(resolve => {
         setTimeout(() => {
@@ -131,20 +131,20 @@ describe('middleware-wrapper', () => {
       })
     })
 
-    it('should abort the stream if authentication fails', () => {
+    it('should abort the stream if authentication fails', async () => {
       // Setup connection as not authenticated and authentication will fail
       mockAuthService.isAuthenticated.returns(false)
       mockAuthService.authenticate.resolves(false)
-      
+
       const wrapper = createMiddlewareWrapper(mockAuthService, mockHandler, { autoAuthenticate: true })
       const data = { connection: mockConnection, stream: mockStream }
-      
+
       // Call the wrapper
       wrapper(data)
-      
+
       // Verify authentication was attempted
       expect(mockAuthService.authenticate.callCount).to.equal(1)
-      
+
       // Since authentication happens asynchronously, we need to wait for it
       return new Promise<void>(resolve => {
         setTimeout(() => {
@@ -156,17 +156,17 @@ describe('middleware-wrapper', () => {
       })
     })
 
-    it('should abort the stream if authentication throws', () => {
+    it('should abort the stream if authentication throws', async () => {
       // Setup authentication to throw an error
       mockAuthService.isAuthenticated.returns(false)
       mockAuthService.authenticate.rejects(new Error('Authentication error'))
-      
+
       const wrapper = createMiddlewareWrapper(mockAuthService, mockHandler, { autoAuthenticate: true })
       const data = { connection: mockConnection, stream: mockStream }
-      
+
       // Call the wrapper
       wrapper(data)
-      
+
       // Since authentication happens asynchronously, we need to wait for it
       return new Promise<void>(resolve => {
         setTimeout(() => {
@@ -179,23 +179,23 @@ describe('middleware-wrapper', () => {
     })
 
     describe('with authorization', () => {
-      it('should call authorize function if connection is authenticated', () => {
+      it('should call authorize function if connection is authenticated', async () => {
         // Setup connection as authenticated
         mockAuthService.isAuthenticated.returns(true)
-        
+
         // Create authorize function
         const authorize = sinon.stub().resolves(true)
-        
+
         const wrapper = createMiddlewareWrapper(mockAuthService, mockHandler, { authorize })
         const data = { connection: mockConnection, stream: mockStream }
-        
+
         // Call the wrapper
         wrapper(data)
-        
+
         // Verify authorize was called
         expect(authorize.callCount).to.equal(1)
         expect(authorize.firstCall.args[0]).to.equal(mockConnection)
-        
+
         // Since authorization happens asynchronously, we need to wait for it
         return new Promise<void>(resolve => {
           setTimeout(() => {
@@ -208,17 +208,17 @@ describe('middleware-wrapper', () => {
         })
       })
 
-      it('should abort the stream if authorization fails', () => {
+      it('should abort the stream if authorization fails', async () => {
         // Setup connection as authenticated but authorization will fail
         mockAuthService.isAuthenticated.returns(true)
         const authorize = sinon.stub().resolves(false)
-        
+
         const wrapper = createMiddlewareWrapper(mockAuthService, mockHandler, { authorize })
         const data = { connection: mockConnection, stream: mockStream }
-        
+
         // Call the wrapper
         wrapper(data)
-        
+
         // Since authorization happens asynchronously, we need to wait for it
         return new Promise<void>(resolve => {
           setTimeout(() => {
@@ -230,17 +230,17 @@ describe('middleware-wrapper', () => {
         })
       })
 
-      it('should abort the stream if authorization throws', () => {
+      it('should abort the stream if authorization throws', async () => {
         // Setup connection as authenticated but authorization will throw
         mockAuthService.isAuthenticated.returns(true)
         const authorize = sinon.stub().rejects(new Error('Authorization error'))
-        
+
         const wrapper = createMiddlewareWrapper(mockAuthService, mockHandler, { authorize })
         const data = { connection: mockConnection, stream: mockStream }
-        
+
         // Call the wrapper
         wrapper(data)
-        
+
         // Since authorization happens asynchronously, we need to wait for it
         return new Promise<void>(resolve => {
           setTimeout(() => {
@@ -253,32 +253,32 @@ describe('middleware-wrapper', () => {
         })
       })
 
-      it('should run authentication then authorization when both are needed', () => {
+      it('should run authentication then authorization when both are needed', async () => {
         // Setup connection as not authenticated
         mockAuthService.isAuthenticated.returns(false)
         mockAuthService.authenticate.resolves(true)
-        
+
         // Create authorize function
         const authorize = sinon.stub().resolves(true)
-        
-        const wrapper = createMiddlewareWrapper(mockAuthService, mockHandler, { 
+
+        const wrapper = createMiddlewareWrapper(mockAuthService, mockHandler, {
           autoAuthenticate: true,
           authorize
         })
         const data = { connection: mockConnection, stream: mockStream }
-        
+
         // Call the wrapper
         wrapper(data)
-        
+
         // Since authentication and authorization happen asynchronously, we need to wait
         return new Promise<void>(resolve => {
           setTimeout(() => {
             // Authentication should be attempted
             expect(mockAuthService.authenticate.callCount).to.equal(1)
-            
+
             // Authorization should be called after successful authentication
             expect(authorize.callCount).to.equal(1)
-            
+
             // Handler should be called after successful authentication and authorization
             expect(mockHandler.callCount).to.equal(1)
             expect(mockHandler.firstCall.args[0]).to.equal(data)
