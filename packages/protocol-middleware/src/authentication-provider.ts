@@ -10,12 +10,8 @@ import type { ComponentLogger } from '@libp2p/logger'
 /**
  * Base options for authentication providers
  */
-export interface AuthenticationProviderOptions {
-  /**
-   * If true, automatically try to authenticate connections when they access protected services
-   */
-  autoAuthenticate?: boolean
-}
+// eslint-disable-next-line @typescript-eslint/no-empty-interface
+export interface AuthenticationProviderOptions {}
 
 /**
  * Common interface for authentication providers that can be plugged into the protocol middleware

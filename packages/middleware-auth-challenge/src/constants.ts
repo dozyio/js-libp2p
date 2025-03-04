@@ -11,4 +11,4 @@ export const MAX_OUTBOUND_STREAMS = 1
 export const TIMEOUT = 10000
 
 // Size of the random challenge in bytes
-export const CHALLENGE_SIZE = 16
+export const CHALLENGE_SIZE = 32

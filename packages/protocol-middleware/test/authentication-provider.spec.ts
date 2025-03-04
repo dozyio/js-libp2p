@@ -19,7 +19,7 @@ describe('AuthenticationProvider Interface', () => {
       stop: async (): Promise<void> => {},
       authenticate: async (connectionId: string, options?: AbortOptions): Promise<boolean> => true,
       isAuthenticated: (connectionId: string): boolean => true
-    } as AuthenticationProvider
+    }
 
     expect(provider).to.exist()
     expect(provider.id).to.equal('test-provider')

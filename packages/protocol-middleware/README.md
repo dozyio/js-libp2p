@@ -71,8 +71,7 @@ const node = await createLibp2p({
 | Name             | Type              | Description                                             | Default      |
 |------------------|-------------------|---------------------------------------------------------|--------------|
 | provider         | `AuthProvider`    | Authentication provider to use                          | -            |
-| autoAuthenticate | `boolean`         | Automatically try to authenticate unauthenticated connections | `true` |
-| protectedServices| `Object`          | Services to protect with authentication                 | `{}`         |
+| services         | `Object`          | Services to protect with authentication                 | `{}`         |
 | authOptions      | `Object`          | Per-service authentication options                      | `{}`         |
 
 ### API Methods

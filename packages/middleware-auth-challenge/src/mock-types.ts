@@ -1,34 +1,3 @@
-// Mock type definitions for building the package
-// These don't affect runtime behavior, just TypeScript compilation
-
-import type { AbortOptions } from '@libp2p/interface'
-
-export interface Uint8ArrayList {
-  at(index: number): number | undefined
-  get(index: number): number | undefined
-  subarray(): Uint8Array
-}
-
-export interface Connection {
-  id: string
-  remotePeer: {
-    toString(): string
-  }
-  // TypeScript workaround: Since we're adding metadata dynamically, make it any
-  metadata: any
-  newStream(protocol: string, options?: AbortOptions): Promise<any>
-}
-
-export interface Peer {
-  id: string
-  pubKey?: Uint8Array
-  publicKey?: Uint8Array
-}
-
-export interface PeerStore {
-  get(peerId: string): Promise<Peer>
-}
-
 // Helper to use instead of .at() which isn't available on Uint8ArrayList
 export function getByteAt (array: any, index: number): number {
   if (typeof array.at === 'function') {

@@ -83,7 +83,7 @@ export interface ProtocolMiddlewareService {
 /**
  * Components needed for the protocol middleware
  */
-export interface FullProtocolMiddlewareComponents extends ProtocolMiddlewareServiceComponents {
+export interface ProtocolMiddlewareComponents extends ProtocolMiddlewareServiceComponents {
   registrar: Registrar
   connectionManager: ConnectionManager
   peerId: {
@@ -97,7 +97,7 @@ export interface FullProtocolMiddlewareComponents extends ProtocolMiddlewareServ
 /**
  * Create a new protocol middleware service
  */
-export function createProtocolMiddleware (init: ProtocolMiddlewareServiceInit): (components: FullProtocolMiddlewareComponents) => ProtocolMiddlewareService {
+export function createProtocolMiddleware (init: ProtocolMiddlewareServiceInit): (components: ProtocolMiddlewareComponents) => ProtocolMiddlewareService {
   return (components) => new ProtocolMiddlewareServiceImpl(components, init)
 }
 
@@ -108,7 +108,6 @@ export function createProtocolMiddleware (init: ProtocolMiddlewareServiceInit): 
  */
 export function createLibp2pMiddleware (options: {
   provider: AuthenticationProvider
-  autoAuthenticate?: boolean
   // Allow passing service names to protect
   protectedServices?: Record<string, any>
   authOptions?: Record<string, MiddlewareWrapperOptions>
@@ -127,20 +126,19 @@ export function createLibp2pMiddleware (options: {
   return (components: any) => {
     // Create the middleware service
     const middleware = new ProtocolMiddlewareServiceImpl(components, {
-      provider: options.provider,
-      autoAuthenticate: options.autoAuthenticate
+      provider: options.provider
     })
 
     // Set up automatic authentication of new connections
-    // Check if the connection manager has an event emitter 
+    // Check if the connection manager has an event emitter
     if (typeof components.connectionManager.on === 'function') {
       // Use Node.js style event emitter
       components.connectionManager.on('connection:open', (connection: any) => {
-        const connectionId = connection.id || (connection.detail && connection.detail.id)
-        if (connectionId) {
+        const connectionId = connection.id ?? (connection.detail?.id)
+        if (connectionId != null) {
           // eslint-disable-next-line no-console
           console.log(`New connection opened, initiating mutual authentication: ${connectionId}`)
-          
+
           // First, authenticate the remote peer
           middleware.authenticate(connectionId).then(result => {
             if (result) {
@@ -160,7 +158,7 @@ export function createLibp2pMiddleware (options: {
 
     // Initialize middleware and protect existing services
     // We delay protection to ensure libp2p has fully initialized all services and handlers
-    ;(async () => {
+    void (async () => {
       try {
         // Add services to the middleware's map right away - important!
         for (const name of serviceNames) {
@@ -168,9 +166,9 @@ export function createLibp2pMiddleware (options: {
           if (service != null) {
             // eslint-disable-next-line no-console
             console.log(`📋 Registering service ${name} with middleware`)
-            middleware.services.set(name, { 
+            middleware.services.set(name, {
               service,
-              authOptions: options.authOptions?.[name] 
+              authOptions: options.authOptions?.[name]
             })
           }
         }
@@ -179,29 +177,39 @@ export function createLibp2pMiddleware (options: {
         // eslint-disable-next-line no-console
         console.log('🚀 Starting protocol middleware')
         await middleware.start()
-        
+
         // Add a small delay to ensure all libp2p services have fully initialized
         // This helps avoid race conditions with handler registration
         await new Promise(resolve => setTimeout(resolve, 100))
-        
+
         // Process services in sequence to avoid race conditions
         for (const name of serviceNames) {
           // Get the service that was initialized by libp2p
           const service = components[name]
-  
+
           if (service != null) {
             try {
-              // Protect the service with middleware
-              // eslint-disable-next-line no-console
-              console.log(`🛡️ Protecting service ${name} with authentication`)
-              await middleware.protectService(name, service, options.authOptions?.[name])
-              // eslint-disable-next-line no-console
-              console.log(`✅ Service ${name} protected successfully`)
+              // Check if this service is already protected to avoid duplicate registration
+              const isAlreadyProtected = Array.from(middleware.services.keys()).some(
+                svcName => svcName === name
+              )
+              
+              if (isAlreadyProtected) {
+                // eslint-disable-next-line no-console
+                console.log(`ℹ️ Service ${name} is already protected, skipping duplicate protection`)
+              } else {
+                // Protect the service with middleware
+                // eslint-disable-next-line no-console
+                console.log(`🛡️ Protecting service ${name} with authentication`)
+                await middleware.protectService(name, service, options.authOptions?.[name])
+                // eslint-disable-next-line no-console
+                console.log(`✅ Service ${name} protected successfully`)
+              }
             } catch (err) {
               // eslint-disable-next-line no-console
               console.error(`❌ Error protecting service ${name}:`, err)
             }
-  
+
             // Add a small delay between service protection to reduce contention
             await new Promise(resolve => setTimeout(resolve, 20))
           } else {

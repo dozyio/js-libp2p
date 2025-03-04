@@ -2,8 +2,8 @@
 import { expect } from 'aegir/chai'
 import sinon from 'sinon'
 import { createMiddlewareWrapper } from '../src/middleware-wrapper.js'
-import type { Connection, Stream } from '@libp2p/interface'
-import type { StreamHandler } from '@libp2p/interface-internal'
+import type { } from '@libp2p/interface'
+import type { } from '@libp2p/interface-internal'
 
 describe('middleware-wrapper', () => {
   let mockAuthService: any
@@ -88,28 +88,28 @@ describe('middleware-wrapper', () => {
       expect(mockStream.abort.callCount).to.equal(0)
     })
 
-    it('should abort the stream if connection is not authenticated and autoAuthenticate is false', () => {
-      // Setup connection as not authenticated
-      mockAuthService.isAuthenticated.returns(false)
+    // it('should abort the stream if connection is not authenticated and autoAuthenticate is false', () => {
+    //   // Setup connection as not authenticated
+    //   mockAuthService.isAuthenticated.returns(false)
+    //
+    //   const wrapper = createMiddlewareWrapper(mockAuthService, mockHandler, { autoAuthenticate: false })
+    //   const data = { connection: mockConnection, stream: mockStream }
+    //
+    //   // Call the wrapper
+    //   wrapper(data)
+    //
+    //   // Verify the stream was aborted and handler not called
+    //   expect(mockStream.abort.callCount).to.equal(1)
+    //   expect(mockHandler.callCount).to.equal(0)
+    //   expect(mockAuthService.authenticate.callCount).to.equal(0)
+    // })
 
-      const wrapper = createMiddlewareWrapper(mockAuthService, mockHandler, { autoAuthenticate: false })
-      const data = { connection: mockConnection, stream: mockStream }
-
-      // Call the wrapper
-      wrapper(data)
-
-      // Verify the stream was aborted and handler not called
-      expect(mockStream.abort.callCount).to.equal(1)
-      expect(mockHandler.callCount).to.equal(0)
-      expect(mockAuthService.authenticate.callCount).to.equal(0)
-    })
-
-    it('should initiate authentication if connection is not authenticated and autoAuthenticate is true', async () => {
+    it('should initiate authentication if connection is not authenticated', async () => {
       // Setup connection as not authenticated initially but authentication will succeed
       mockAuthService.isAuthenticated.returns(false)
       mockAuthService.authenticate.resolves(true)
 
-      const wrapper = createMiddlewareWrapper(mockAuthService, mockHandler, { autoAuthenticate: true })
+      const wrapper = createMiddlewareWrapper(mockAuthService, mockHandler)
       const data = { connection: mockConnection, stream: mockStream }
 
       // Call the wrapper
@@ -136,7 +136,7 @@ describe('middleware-wrapper', () => {
       mockAuthService.isAuthenticated.returns(false)
       mockAuthService.authenticate.resolves(false)
 
-      const wrapper = createMiddlewareWrapper(mockAuthService, mockHandler, { autoAuthenticate: true })
+      const wrapper = createMiddlewareWrapper(mockAuthService, mockHandler)
       const data = { connection: mockConnection, stream: mockStream }
 
       // Call the wrapper
@@ -161,7 +161,7 @@ describe('middleware-wrapper', () => {
       mockAuthService.isAuthenticated.returns(false)
       mockAuthService.authenticate.rejects(new Error('Authentication error'))
 
-      const wrapper = createMiddlewareWrapper(mockAuthService, mockHandler, { autoAuthenticate: true })
+      const wrapper = createMiddlewareWrapper(mockAuthService, mockHandler)
       const data = { connection: mockConnection, stream: mockStream }
 
       // Call the wrapper
@@ -262,7 +262,6 @@ describe('middleware-wrapper', () => {
         const authorize = sinon.stub().resolves(true)
 
         const wrapper = createMiddlewareWrapper(mockAuthService, mockHandler, {
-          autoAuthenticate: true,
           authorize
         })
         const data = { connection: mockConnection, stream: mockStream }
