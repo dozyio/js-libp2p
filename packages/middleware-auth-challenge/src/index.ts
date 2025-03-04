@@ -91,7 +91,6 @@ export function challengeResponseProvider (options: ChallengeResponseProviderOpt
 
   // Configure options
   const authTimeout = options.timeout ?? TIMEOUT
-  // const protocolPrefix = options.protocolPrefix ?? 'libp2p' // Currently unused but kept for future use
   const maxInboundStreams = options.maxInboundStreams ?? MAX_INBOUND_STREAMS
   const maxOutboundStreams = options.maxOutboundStreams ?? MAX_OUTBOUND_STREAMS
   let log: any

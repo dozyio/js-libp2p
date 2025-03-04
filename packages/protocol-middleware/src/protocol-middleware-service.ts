@@ -1,5 +1,7 @@
-import { createMiddlewareWrapper } from './middleware-wrapper.js'
+/* eslint-disable complexity */
+/* eslint-disable max-depth */
 import { pipe } from 'it-pipe'
+import { createMiddlewareWrapper } from './middleware-wrapper.js'
 import type { AuthenticationProvider } from './authentication-provider.js'
 import type { MiddlewareWrapperOptions } from './middleware-wrapper.js'
 import type { AbortOptions, ComponentLogger, Logger, Startable, StreamHandlerRecord, StreamHandler } from '@libp2p/interface'
@@ -15,10 +17,11 @@ export interface ProtectedService {
   handle?: StreamHandler
   maxInboundStreams?: number
   maxOutboundStreams?: number
+  runOnLimitedConnection?: boolean
   // Additional properties that might be present on service objects
   multicodecs?: string[]
   [Symbol.toStringTag]?: string
-  getProtocols?: () => string[]
+  getProtocols?(): string[]
 }
 
 /**
@@ -155,45 +158,46 @@ export class ProtocolMiddlewareService implements Startable {
         // Special case for identify service
         if (name === 'identify' || (service[Symbol.toStringTag]?.includes('identify') === true)) {
           this.log(`Service ${name} detected as identify service - will be handled specially`)
-          
+
           // For identify, we check handleProtocol method
           if (typeof service.handleProtocol === 'function') {
             // For identify service, we need to actively protect it
             try {
               // Use a standard protocol name for identify
               const identifyProtocol = '/ipfs/id/1.0.0'
-              
+
               // Create protected service object with the right properties
               const protectedService = {
                 protocol: identifyProtocol,
                 handleProtocol: service.handleProtocol.bind(service),
                 maxInboundStreams: service.maxInboundStreams ?? 16,
-                maxOutboundStreams: service.maxOutboundStreams ?? 16
+                maxOutboundStreams: service.maxOutboundStreams ?? 16,
+                runOnLimitedConnection: service.runOnLimitedConnection ?? false
               }
-              
+
               // Get existing handler if it exists
               let existingHandler
               try {
                 const handlerRecord = this.components.registrar.getHandler(identifyProtocol)
                 if (handlerRecord != null) {
                   existingHandler = handlerRecord.handler
-                  this.log(`Found existing identify handler, will replace it with protected version`)
-                  
+                  this.log('Found existing identify handler, will replace it with protected version')
+
                   // Unregister the existing handler
                   await this.components.registrar.unhandle(identifyProtocol)
-                  this.log(`Unregistered existing identify handler`)
+                  this.log('Unregistered existing identify handler')
                 }
               } catch (err) {
                 // Ignore errors - just means handler doesn't exist yet
               }
-              
+
               // Create protected handler
               const protectedHandler = createMiddlewareWrapper(
                 this,
                 protectedService.handleProtocol,
                 authOptions ?? this.defaultAuthOptions
               )
-              
+
               // Register the protected handler with force option to avoid duplicate registration errors
               try {
                 await this.components.registrar.handle(identifyProtocol, protectedHandler, {
@@ -204,33 +208,33 @@ export class ProtocolMiddlewareService implements Startable {
               } catch (handlerErr) {
                 const errMsg = handlerErr instanceof Error ? handlerErr.message : String(handlerErr)
                 this.log.error(`Error registering identify handler: ${errMsg}, will try alternative approach`)
-                
+
                 // Try unregistering again and then reregister
                 try {
                   await this.components.registrar.unhandle(identifyProtocol)
-                  this.log(`Unregistered identify handler again due to error`)
-                  
+                  this.log('Unregistered identify handler again due to error')
+
                   // Small delay to ensure unregister completes
                   await new Promise(resolve => setTimeout(resolve, 50))
-                  
+
                   await this.components.registrar.handle(identifyProtocol, protectedHandler, {
                     maxInboundStreams: protectedService.maxInboundStreams,
                     maxOutboundStreams: protectedService.maxOutboundStreams
                   })
-                  
-                  this.log(`Successfully registered identify handler after second attempt`)
+
+                  this.log('Successfully registered identify handler after second attempt')
                 } catch (err2) {
                   const errMsg2 = err2 instanceof Error ? err2.message : String(err2)
                   this.log.error(`Failed second attempt to register identify handler: ${errMsg2}`)
                   throw err2
                 }
               }
-              
+
               this.log(`Successfully protected identify service (${identifyProtocol})`)
-              
+
               // Store the service and original handler
               this.serviceHandlers.set(identifyProtocol, protectedService.handleProtocol)
-              
+
               // Skip the normal protection flow for this service
               continue
             } catch (err) {
@@ -242,20 +246,18 @@ export class ProtocolMiddlewareService implements Startable {
             this.log.error(`start Service ${name} doesn't have required handleProtocol method`)
             throw new Error(`start Service ${name} doesn't have required handleProtocol method`)
           }
-        }
-        
+        } else if (name === 'echo' || (service[Symbol.toStringTag]?.includes('echo') === true)) {
         // Special case for echo service
-        else if (name === 'echo' || (service[Symbol.toStringTag]?.includes('echo') === true)) {
           this.log(`Service ${name} detected as echo service - will be handled specially`)
-          
+
           // For echo service, we check for protocol and start method
           if (typeof service.protocol === 'string') {
             this.log(`Echo service has protocol property: ${service.protocol}`)
-            
+
             try {
               // Create a protected handler for the echo protocol
               const echoProtocol = service.protocol
-              
+
               // Create a simple handler that mirrors echo's functionality
               const echoHandler = (data: any): void => {
                 void pipe(data.stream, data.stream)
@@ -263,17 +265,17 @@ export class ProtocolMiddlewareService implements Startable {
                     this.log.error('error piping stream in echo handler', err)
                   })
               }
-              
+
               // Store the handler for reference
               this.serviceHandlers.set(echoProtocol, echoHandler)
-              
+
               // Create protected wrapper
               const protectedHandler = createMiddlewareWrapper(
                 this,
                 echoHandler,
                 authOptions ?? this.defaultAuthOptions
               )
-              
+
               // Try to unregister any existing handler first
               try {
                 await this.components.registrar.unhandle(echoProtocol)
@@ -281,20 +283,20 @@ export class ProtocolMiddlewareService implements Startable {
               } catch (err) {
                 // Ignore errors - might not be registered yet
               }
-              
+
               // Register the protected handler
               await this.components.registrar.handle(echoProtocol, protectedHandler, {
                 maxInboundStreams: service.maxInboundStreams ?? 16,
                 maxOutboundStreams: service.maxOutboundStreams ?? 16
               })
-              
+
               this.log(`Successfully protected echo service (${echoProtocol})`)
             } catch (err) {
               const errMsg = err instanceof Error ? err.message : String(err)
               this.log.error(`Failed to protect echo service: ${errMsg}`)
               throw err
             }
-            
+
             // Skip further validation for this service
             continue
           } else {
@@ -302,18 +304,18 @@ export class ProtocolMiddlewareService implements Startable {
             throw new Error(`start Service ${name} doesn't have required protocol property`)
           }
         }
-        
+
         // For other services, check if they have the required properties
-        const hasProtocol = service.protocol != null || 
+        const hasProtocol = service.protocol != null ||
                           (service.multicodecs != null && Array.isArray(service.multicodecs)) ||
                           (service[Symbol.toStringTag]?.includes('identify') === true)
 
         // For all other services, check if service has any method that could be a handler
-        const hasHandler = typeof service.handleMessage === 'function' || 
+        const hasHandler = typeof service.handleMessage === 'function' ||
                           typeof service.handleProtocol === 'function' ||
                           typeof service.handle === 'function'
 
-        if (hasProtocol === false || hasHandler === false) {
+        if (!hasProtocol || !hasHandler) {
           this.log.error(`start Service ${name} doesn't have required protocol or handler method`)
           throw new Error(`start Service ${name} doesn't have required protocol or handler method`)
           // continue
@@ -379,7 +381,7 @@ export class ProtocolMiddlewareService implements Startable {
           } else {
             throw new Error(`Service ${name} doesn't have a valid handler method`)
           }
-          
+
           this.serviceHandlers.set(service.protocol, originalHandler)
 
           // Create protected handler
@@ -416,11 +418,11 @@ export class ProtocolMiddlewareService implements Startable {
             try {
               await this.components.registrar.unhandle(service.protocol)
               this.log(`Unprotected service ${name} (${service.protocol})`)
-              
-              // Re-register the original echo handler if needed - the echo service will 
+
+              // Re-register the original echo handler if needed - the echo service will
               // handle this itself when it starts again, so we don't need to do it
             } catch (err) {
-              this.log.error(`Failed to unprotect echo service: %o`, err)
+              this.log.error('Failed to unprotect echo service: %o', err)
             }
           } else {
             // Standard unregistration for other services
@@ -502,16 +504,16 @@ export class ProtocolMiddlewareService implements Startable {
     } else if (service.multicodecs != null && Array.isArray(service.multicodecs) && service.multicodecs.length > 0) {
       // Service has a multicodecs array
       return this.protectServiceWithProtocol(name, service, service.multicodecs[0], authOptions)
-    } else if (name === 'identify' || (service[Symbol.toStringTag] != null && service[Symbol.toStringTag].includes('identify'))) {
+    } else if (name === 'identify' || (service[Symbol.toStringTag]?.includes('identify'))) {
       // Special case for identify service which uses different protocol conventions
-      
+
       // Try different ways to determine the identify protocol
       if (service.protocol != null && typeof service.protocol === 'string') {
         // If service has a direct protocol property, use it
         this.log(`Found direct protocol for identify: ${service.protocol}`)
         return this.protectServiceWithProtocol(name, service, service.protocol, authOptions)
-      } 
-      
+      }
+
       // Try to get protocols from the service
       try {
         // Try to access multicodecs if available
@@ -520,7 +522,7 @@ export class ProtocolMiddlewareService implements Startable {
           this.log(`Using protocol from multicodecs: ${protocol}`)
           return this.protectServiceWithProtocol(name, service, protocol, authOptions)
         }
-        
+
         // Try to get protocols from a method if available
         if (typeof service.getProtocols === 'function') {
           const protocols = service.getProtocols()
@@ -534,10 +536,10 @@ export class ProtocolMiddlewareService implements Startable {
         const errMsg = err instanceof Error ? err.message : String(err)
         this.log.error(`Error trying to determine identify protocol: ${errMsg}`)
       }
-      
+
       // Fall back to standard protocol name for identify
       this.log('Using default identify protocol: /ipfs/id/1.0.0')
-      
+
       // For identify we need to get the protocol handler directly from the service
       if (typeof service.handleProtocol === 'function') {
         this.log('Using handleProtocol from identify service')
@@ -547,7 +549,7 @@ export class ProtocolMiddlewareService implements Startable {
           handleProtocol: service.handleProtocol.bind(service)
         }, identifyProtocol, authOptions)
       }
-      
+
       return this.protectServiceWithProtocol(name, service, '/ipfs/id/1.0.0', authOptions)
     } else {
       // No protocol information available
