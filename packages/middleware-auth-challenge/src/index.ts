@@ -68,8 +68,8 @@ interface ProtocolAuthenticationProvider {
   start(): Promise<void>
   stop(): Promise<void>
   isStarted(): boolean
-  authenticate(connectionId: string, options?: AbortOptions): Promise<boolean>
-  isAuthenticated(connectionId: string): boolean
+  wrap(connectionId: string, options?: AbortOptions): Promise<boolean>
+  isWrapped(connectionId: string): boolean
 }
 
 /**
@@ -242,7 +242,7 @@ export function challengeResponseProvider (options: ChallengeResponseProviderOpt
     },
 
     // Authentication methods
-    async authenticate (connectionId: string, abortOptions?: AbortOptions): Promise<boolean> {
+    async wrap (connectionId: string, abortOptions?: AbortOptions): Promise<boolean> {
       log('🔒 Authentication attempt for connection:', connectionId)
 
       if (!started) {
@@ -350,7 +350,7 @@ export function challengeResponseProvider (options: ChallengeResponseProviderOpt
       }
     },
 
-    isAuthenticated (connectionId: string): boolean {
+    isWrapped (connectionId: string): boolean {
       if (!started) return false
 
       if (components == null) {

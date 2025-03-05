@@ -1,6 +1,6 @@
 /* eslint-env mocha */
 import { expect } from 'aegir/chai'
-import type { AuthenticationProvider } from '../src/authentication-provider.js'
+import type { MiddlewareProvider } from '../src/authentication-provider.js'
 import type { AbortOptions } from '@libp2p/interface'
 
 describe('AuthenticationProvider Interface', () => {
@@ -9,7 +9,7 @@ describe('AuthenticationProvider Interface', () => {
     // and has the expected methods
 
     // Since we're just testing the interface, we can cast to it
-    const provider: AuthenticationProvider = {
+    const provider: MiddlewareProvider = {
       // Required properties
       id: 'test-provider',
       name: 'Test Provider',
@@ -17,8 +17,8 @@ describe('AuthenticationProvider Interface', () => {
       // Methods that must be implemented
       start: async (): Promise<void> => {},
       stop: async (): Promise<void> => {},
-      authenticate: async (connectionId: string, options?: AbortOptions): Promise<boolean> => true,
-      isAuthenticated: (connectionId: string): boolean => true
+      wrap: async (connectionId: string, options?: AbortOptions): Promise<boolean> => true,
+      isWrapped: (connectionId: string): boolean => true
     }
 
     expect(provider).to.exist()
@@ -26,7 +26,7 @@ describe('AuthenticationProvider Interface', () => {
     expect(provider.name).to.equal('Test Provider')
     expect(provider.start).to.be.a('function')
     expect(provider.stop).to.be.a('function')
-    expect(provider.authenticate).to.be.a('function')
-    expect(provider.isAuthenticated).to.be.a('function')
+    expect(provider.wrap).to.be.a('function')
+    expect(provider.isWrapped).to.be.a('function')
   })
 })

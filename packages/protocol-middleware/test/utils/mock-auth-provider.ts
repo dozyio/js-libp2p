@@ -1,4 +1,4 @@
-import type { AuthenticationProvider } from '../../src/authentication-provider.js'
+import type { MiddlewareProvider } from '../../src/authentication-provider.js'
 import type { AbortOptions } from '@libp2p/interface'
 
 interface MockAuthProviderOptions {
@@ -16,7 +16,7 @@ interface MockAuthProviderOptions {
 /**
  * Creates a mock authentication provider for testing
  */
-export function mockAuthProvider (options: MockAuthProviderOptions = {}): AuthenticationProvider {
+export function mockAuthProvider (options: MockAuthProviderOptions = {}): MiddlewareProvider {
   // Store authenticated connections
   const authenticatedConnections = new Set<string>()
 
@@ -63,7 +63,7 @@ export function mockAuthProvider (options: MockAuthProviderOptions = {}): Authen
     /**
      * Authenticate a connection
      */
-    async authenticate (connectionId: string, options?: AbortOptions): Promise<boolean> {
+    async wrap (connectionId: string, options?: AbortOptions): Promise<boolean> {
       // Simulate network delay
       if (opts.delay > 0) {
         await new Promise(resolve => setTimeout(resolve, opts.delay))
@@ -92,7 +92,7 @@ export function mockAuthProvider (options: MockAuthProviderOptions = {}): Authen
     /**
      * Check if a connection is authenticated
      */
-    isAuthenticated (connectionId: string): boolean {
+    isWrapped (connectionId: string): boolean {
       return authenticatedConnections.has(connectionId)
     }
   }

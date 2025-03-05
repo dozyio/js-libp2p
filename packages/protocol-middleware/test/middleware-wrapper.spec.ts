@@ -16,8 +16,8 @@ describe('middleware-wrapper', () => {
     mockHandler = sinon.stub()
 
     mockAuthService = {
-      authenticate: sinon.stub().resolves(true),
-      isAuthenticated: sinon.stub().returns(false),
+      wrap: sinon.stub().resolves(true),
+      isWrapped: sinon.stub().returns(false),
       protectService: sinon.stub().resolves(),
       unprotectService: sinon.stub().resolves(),
       start: sinon.stub().resolves(),
@@ -73,7 +73,7 @@ describe('middleware-wrapper', () => {
 
     it('should call handler directly if connection is authenticated', () => {
       // Setup connection as authenticated
-      mockAuthService.isAuthenticated.returns(true)
+      mockAuthService.isWrapped.returns(true)
 
       const wrapper = createMiddlewareWrapper(mockAuthService, mockHandler)
       const data = { connection: mockConnection, stream: mockStream }
@@ -84,7 +84,7 @@ describe('middleware-wrapper', () => {
       // Verify the handler was called directly
       expect(mockHandler.callCount).to.equal(1)
       expect(mockHandler.firstCall.args[0]).to.equal(data)
-      expect(mockAuthService.authenticate.callCount).to.equal(0)
+      expect(mockAuthService.wrap.callCount).to.equal(0)
       expect(mockStream.abort.callCount).to.equal(0)
     })
 
@@ -106,8 +106,8 @@ describe('middleware-wrapper', () => {
 
     it('should initiate authentication if connection is not authenticated', async () => {
       // Setup connection as not authenticated initially but authentication will succeed
-      mockAuthService.isAuthenticated.returns(false)
-      mockAuthService.authenticate.resolves(true)
+      mockAuthService.isWrapped.returns(false)
+      mockAuthService.wrap.resolves(true)
 
       const wrapper = createMiddlewareWrapper(mockAuthService, mockHandler)
       const data = { connection: mockConnection, stream: mockStream }
@@ -116,8 +116,8 @@ describe('middleware-wrapper', () => {
       wrapper(data)
 
       // Verify authentication was attempted
-      expect(mockAuthService.authenticate.callCount).to.equal(1)
-      expect(mockAuthService.authenticate.firstCall.args[0]).to.equal(mockConnection.id)
+      expect(mockAuthService.wrap.callCount).to.equal(1)
+      expect(mockAuthService.wrap.firstCall.args[0]).to.equal(mockConnection.id)
 
       // Since authentication happens asynchronously, we need to wait for it
       return new Promise<void>(resolve => {
@@ -133,8 +133,8 @@ describe('middleware-wrapper', () => {
 
     it('should abort the stream if authentication fails', async () => {
       // Setup connection as not authenticated and authentication will fail
-      mockAuthService.isAuthenticated.returns(false)
-      mockAuthService.authenticate.resolves(false)
+      mockAuthService.isWrapped.returns(false)
+      mockAuthService.wrap.resolves(false)
 
       const wrapper = createMiddlewareWrapper(mockAuthService, mockHandler)
       const data = { connection: mockConnection, stream: mockStream }
@@ -143,7 +143,7 @@ describe('middleware-wrapper', () => {
       wrapper(data)
 
       // Verify authentication was attempted
-      expect(mockAuthService.authenticate.callCount).to.equal(1)
+      expect(mockAuthService.wrap.callCount).to.equal(1)
 
       // Since authentication happens asynchronously, we need to wait for it
       return new Promise<void>(resolve => {
@@ -158,8 +158,8 @@ describe('middleware-wrapper', () => {
 
     it('should abort the stream if authentication throws', async () => {
       // Setup authentication to throw an error
-      mockAuthService.isAuthenticated.returns(false)
-      mockAuthService.authenticate.rejects(new Error('Authentication error'))
+      mockAuthService.isWrapped.returns(false)
+      mockAuthService.wrap.rejects(new Error('Authentication error'))
 
       const wrapper = createMiddlewareWrapper(mockAuthService, mockHandler)
       const data = { connection: mockConnection, stream: mockStream }
@@ -181,7 +181,7 @@ describe('middleware-wrapper', () => {
     describe('with authorization', () => {
       it('should call authorize function if connection is authenticated', async () => {
         // Setup connection as authenticated
-        mockAuthService.isAuthenticated.returns(true)
+        mockAuthService.isWrapped.returns(true)
 
         // Create authorize function
         const authorize = sinon.stub().resolves(true)
@@ -210,7 +210,7 @@ describe('middleware-wrapper', () => {
 
       it('should abort the stream if authorization fails', async () => {
         // Setup connection as authenticated but authorization will fail
-        mockAuthService.isAuthenticated.returns(true)
+        mockAuthService.isWrapped.returns(true)
         const authorize = sinon.stub().resolves(false)
 
         const wrapper = createMiddlewareWrapper(mockAuthService, mockHandler, { authorize })
@@ -232,7 +232,7 @@ describe('middleware-wrapper', () => {
 
       it('should abort the stream if authorization throws', async () => {
         // Setup connection as authenticated but authorization will throw
-        mockAuthService.isAuthenticated.returns(true)
+        mockAuthService.isWrapped.returns(true)
         const authorize = sinon.stub().rejects(new Error('Authorization error'))
 
         const wrapper = createMiddlewareWrapper(mockAuthService, mockHandler, { authorize })
@@ -255,8 +255,8 @@ describe('middleware-wrapper', () => {
 
       it('should run authentication then authorization when both are needed', async () => {
         // Setup connection as not authenticated
-        mockAuthService.isAuthenticated.returns(false)
-        mockAuthService.authenticate.resolves(true)
+        mockAuthService.isWrapped.returns(false)
+        mockAuthService.wrap.resolves(true)
 
         // Create authorize function
         const authorize = sinon.stub().resolves(true)
@@ -273,7 +273,7 @@ describe('middleware-wrapper', () => {
         return new Promise<void>(resolve => {
           setTimeout(() => {
             // Authentication should be attempted
-            expect(mockAuthService.authenticate.callCount).to.equal(1)
+            expect(mockAuthService.wrap.callCount).to.equal(1)
 
             // Authorization should be called after successful authentication
             expect(authorize.callCount).to.equal(1)

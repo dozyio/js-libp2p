@@ -1,0 +1,69 @@
+{
+  "name": "@libp2p/middleware-registrar",
+  "version": "1.0.0",
+  "description": "A registrar implementation that automatically wraps protocols with middleware",
+  "license": "Apache-2.0 OR MIT",
+  "homepage": "https://github.com/dozyio/js-libp2p/tree/main/packages/middleware-registrar#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dozyio/js-libp2p.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dozyio/js-libp2p/issues"
+  },
+  "keywords": [
+    "IPFS",
+    "libp2p",
+    "middleware",
+    "registrar"
+  ],
+  "type": "module",
+  "types": "./dist/src/index.d.ts",
+  "files": [
+    "src",
+    "dist",
+    "!dist/test",
+    "!**/*.tsbuildinfo"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/src/index.js"
+    }
+  },
+  "eslintConfig": {
+    "extends": "ipfs",
+    "parserOptions": {
+      "project": true
+    }
+  },
+  "scripts": {
+    "clean": "aegir clean",
+    "lint": "aegir lint",
+    "dep-check": "aegir dep-check",
+    "build": "aegir build",
+    "test": "aegir test",
+    "test:chrome": "aegir test -t browser",
+    "test:chrome-webworker": "aegir test -t webworker",
+    "test:firefox": "aegir test -t browser -- --browser firefox",
+    "test:firefox-webworker": "aegir test -t webworker -- --browser firefox",
+    "test:node": "aegir test -t node --cov",
+    "test:electron-main": "aegir test -t electron-main"
+  },
+  "dependencies": {
+    "@libp2p/interface": "^1.0.0",
+    "@libp2p/interface-internal": "^0.1.0",
+    "@libp2p/logger": "^4.0.0",
+    "@libp2p/peer-collections": "^6.0.0",
+    "@libp2p/protocol-middleware": "^1.0.0",
+    "@multiformats/multiaddr": "^12.1.5"
+  },
+  "peerDependencies": {
+    "@libp2p/interface": "*",
+    "@libp2p/interface-internal": "*",
+    "@libp2p/peer-collections": "*"
+  },
+  "devDependencies": {
+    "aegir": "^42.1.0"
+  }
+}

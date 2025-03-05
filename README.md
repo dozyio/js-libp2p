@@ -69,6 +69,10 @@ For help configuring your node to resist malicious network peers, see [LIMITS.md
 
 If you are starting your journey with `js-libp2p`, read the [GETTING\_STARTED.md](https://github.com/libp2p/js-libp2p/blob/main/doc/GETTING_STARTED.md) guide.
 
+### Advanced Features
+
+- [Customizing Protocol Registration and Handling](https://github.com/libp2p/js-libp2p/blob/main/doc/REGISTRAR_CUSTOMIZATION.md) - Learn how to use custom registrars to add middleware for authentication, monitoring, and more
+
 ### Tutorials and Examples
 
 You can find multiple examples on the [examples repo](https://github.com/libp2p/js-libp2p-examples) that will guide you through using libp2p for several scenarios.

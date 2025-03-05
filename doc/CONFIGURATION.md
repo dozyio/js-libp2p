@@ -44,6 +44,8 @@ libp2p is a modular networking stack. It's designed to be able to suit a variety
 
 Regardless of how you configure libp2p, the top level [API](https://github.com/libp2p/js-libp2p/blob/main/doc/API.md) will always remain the same. **Note**: if some modules are not configured, like Content Routing, using those methods will throw errors.
 
+For advanced customization of protocol handling, see the [Registrar Customization](./REGISTRAR_CUSTOMIZATION.md) document.
+
 To get a high-level overview of the js-libp2p architecture, please read the [Architecture](https://github.com/libp2p/js-libp2p/blob/main/doc/ARCHITECTURE.md) document.
 
 ## Modules

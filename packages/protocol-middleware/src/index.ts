@@ -49,9 +49,9 @@
  */
 
 import { ProtocolMiddlewareService as ProtocolMiddlewareServiceImpl } from './protocol-middleware-service.js'
-import type { AuthenticationProvider } from './authentication-provider.js'
+import type { MiddlewareProvider } from './authentication-provider.js'
 import type { MiddlewareWrapperOptions } from './middleware-wrapper.js'
-import type { ProtectedService, ProtocolMiddlewareServiceInit, ProtocolMiddlewareServiceComponents } from './protocol-middleware-service.js'
+import type { WrappedService, ProtocolMiddlewareServiceInit, ProtocolMiddlewareServiceComponents } from './protocol-middleware-service.js'
 import type { AbortOptions, ComponentLogger, PeerId, PeerStore } from '@libp2p/interface'
 import type { ConnectionManager, Registrar } from '@libp2p/interface-internal'
 
@@ -62,17 +62,17 @@ export interface ProtocolMiddlewareService {
   /**
    * Authenticate a connection using the configured authentication provider
    */
-  authenticate(connectionId: string, options?: AbortOptions): Promise<boolean>
+  wrap(connectionId: string, options?: AbortOptions): Promise<boolean>
 
   /**
    * Check if a connection is authenticated
    */
-  isAuthenticated(connectionId: string): boolean
+  isWrapped(connectionId: string): boolean
 
   /**
    * Register a service to be protected with authentication
    */
-  protectService(name: string, service: ProtectedService, authOptions?: MiddlewareWrapperOptions): Promise<void>
+  protectService(name: string, service: WrappedService, authOptions?: MiddlewareWrapperOptions): Promise<void>
 
   /**
    * Unprotect a previously protected service
@@ -107,7 +107,7 @@ export function createProtocolMiddleware (init: ProtocolMiddlewareServiceInit): 
  * This is a utility function that's easier to use with libp2p service components
  */
 export function createLibp2pMiddleware (options: {
-  provider: AuthenticationProvider
+  provider: MiddlewareProvider
   // Allow passing service names to protect
   protectedServices?: Record<string, any>
   authOptions?: Record<string, MiddlewareWrapperOptions>
@@ -140,7 +140,7 @@ export function createLibp2pMiddleware (options: {
           console.log(`New connection opened, initiating mutual authentication: ${connectionId}`)
 
           // First, authenticate the remote peer
-          middleware.authenticate(connectionId).then(result => {
+          middleware.wrap(connectionId).then(result => {
             if (result) {
               // eslint-disable-next-line no-console
               console.log(`Connection ${connectionId.slice(0, 8)} authenticated successfully`)
@@ -193,7 +193,7 @@ export function createLibp2pMiddleware (options: {
               const isAlreadyProtected = Array.from(middleware.services.keys()).some(
                 svcName => svcName === name
               )
-              
+
               if (isAlreadyProtected) {
                 // eslint-disable-next-line no-console
                 console.log(`ℹ️ Service ${name} is already protected, skipping duplicate protection`)
@@ -232,10 +232,10 @@ export { createMiddlewareWrapper } from './middleware-wrapper.js'
 
 // Export types
 export type {
-  ProtectedService,
+  WrappedService as ProtectedService,
   ProtocolMiddlewareServiceInit,
   MiddlewareWrapperOptions
 }
 
 // Export authentication provider interface for use by providers
-export type { AuthenticationProvider, AuthenticationProviderOptions } from './authentication-provider.js'
+export type { MiddlewareProvider as AuthenticationProvider, MiddlewareProviderOptions as AuthenticationProviderOptions } from './authentication-provider.js'

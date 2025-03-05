@@ -1,5 +1,37 @@
 import type { ProtocolMiddlewareService } from './protocol-middleware-service.js'
-import type { IncomingStreamData, Connection, StreamHandler } from '@libp2p/interface'
+import type { IncomingStreamData, Connection, StreamHandler, Startable, AbortOptions, ComponentLogger } from '@libp2p/interface'
+import type { ConnectionManager, Registrar } from '@libp2p/interface-internal'
+
+export interface MiddlewareProvider extends Startable {
+  /**
+   * Unique identifier for this authentication provider
+   */
+  readonly id: string
+
+  /**
+   * Human-readable name for this authentication provider
+   */
+  readonly name: string
+
+  /**
+   * Wrap a connection using this provider's method
+   */
+  wrap(connectionId: string, options?: AbortOptions): Promise<boolean>
+
+  /**
+   * Check if a connection is wrapped with this provider
+   */
+  isWrapped(connectionId: string): boolean
+}
+
+/**
+ * Components needed by middleware providers
+ */
+export interface MiddlewareProviderComponents {
+  registrar: Registrar
+  connectionManager: ConnectionManager
+  logger: ComponentLogger
+}
 
 /**
  * Options for the middleware wrapper
@@ -22,10 +54,10 @@ export function createMiddlewareWrapper (
   return (data: IncomingStreamData): void => {
     const { connection, stream } = data
     void (async () => {
-      if (!authService.isAuthenticated(connection.id)) {
+      if (!authService.isWrapped(connection.id)) {
         try {
-          const isAuthenticated = await authService.authenticate(connection.id)
-          if (!isAuthenticated) {
+          const isWrapped = await authService.wrap(connection.id)
+          if (!isWrapped) {
             throw new Error('Connection not authenticated')
           }
           if (options.authorize != null) {

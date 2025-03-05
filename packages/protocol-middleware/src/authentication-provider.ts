@@ -11,12 +11,12 @@ import type { ComponentLogger } from '@libp2p/logger'
  * Base options for authentication providers
  */
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
-export interface AuthenticationProviderOptions {}
+export interface MiddlewareProviderOptions {}
 
 /**
  * Common interface for authentication providers that can be plugged into the protocol middleware
  */
-export interface AuthenticationProvider extends Startable {
+export interface MiddlewareProvider extends Startable {
   /**
    * Unique identifier for this authentication provider
    */
@@ -28,20 +28,20 @@ export interface AuthenticationProvider extends Startable {
   readonly name: string
 
   /**
-   * Authenticate a connection using this provider's method
+   * Wrap a connection using this provider's method
    */
-  authenticate(connectionId: string, options?: AbortOptions): Promise<boolean>
+  wrap(connectionId: string, options?: AbortOptions): Promise<boolean>
 
   /**
-   * Check if a connection is authenticated with this provider
+   * Check if a connection is wrapped with this provider
    */
-  isAuthenticated(connectionId: string): boolean
+  isWrapped(connectionId: string): boolean
 }
 
 /**
- * Components needed by authentication providers
+ * Components needed by middleware providers
  */
-export interface AuthenticationProviderComponents {
+export interface MiddlewareProviderComponents {
   registrar: Registrar
   connectionManager: ConnectionManager
   logger: ComponentLogger

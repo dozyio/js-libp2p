@@ -84,8 +84,8 @@ describe('Challenge Response Provider', () => {
       expect(provider).to.be.an('object')
       expect(provider.id).to.equal('challenge-response')
       expect(provider.name).to.be.a('string')
-      expect(provider.authenticate).to.be.a('function')
-      expect(provider.isAuthenticated).to.be.a('function')
+      expect(provider.wrap).to.be.a('function')
+      expect(provider.isWrapped).to.be.a('function')
       expect(provider.start).to.be.a('function')
       expect(provider.stop).to.be.a('function')
       expect(provider.isStarted).to.be.a('function')
@@ -109,20 +109,20 @@ describe('Challenge Response Provider', () => {
       expect(provider.start).to.be.a('function')
       expect(provider.stop).to.be.a('function')
       expect(provider.isStarted).to.be.a('function')
-      expect(provider.authenticate).to.be.a('function')
-      expect(provider.isAuthenticated).to.be.a('function')
+      expect(provider.wrap).to.be.a('function')
+      expect(provider.isWrapped).to.be.a('function')
     })
 
     it('should return false for isStarted initially', () => {
       expect(provider.isStarted()).to.be.false()
     })
 
-    it('should return false for isAuthenticated', async () => {
-      expect(provider.isAuthenticated(connectionId)).to.be.false()
+    it('should return false for isWrapped', async () => {
+      expect(provider.isWrapped(connectionId)).to.be.false()
     })
 
-    it('should return false for authenticate when not started', async () => {
-      const result = await provider.authenticate(connectionId)
+    it('should return false for wrap when not started', async () => {
+      const result = await provider.wrap(connectionId)
       expect(result).to.be.false()
     })
 
@@ -140,7 +140,7 @@ describe('Challenge Response Provider', () => {
       })
     })
 
-    describe('authentication', () => {
+    describe('wrap', () => {
       beforeEach(async () => {
         await provider.start()
       })
@@ -149,7 +149,7 @@ describe('Challenge Response Provider', () => {
         await provider.stop()
       })
 
-      it('should open a stream to the remote peer for authentication', async () => {
+      it('should open a stream to the remote peer for wrap', async () => {
         // Set up a simple successful response in the mock stream
         mockStream.source = {
           [Symbol.asyncIterator]: async function * () {
@@ -158,7 +158,7 @@ describe('Challenge Response Provider', () => {
         }
 
         // Start authentication process
-        const authPromise = provider.authenticate(connectionId)
+        const authPromise = provider.wrap(connectionId)
 
         // Wait for the promise to resolve
         await authPromise
@@ -192,11 +192,11 @@ describe('Challenge Response Provider', () => {
           }
         }
 
-        // Start authentication process
-        await provider.authenticate(connectionId)
+        // Start wrap process
+        await provider.wrap(connectionId)
 
         // In real scenario, since we're not actually hashing the challenge,
-        // the authentication would fail, but we've simulated a failing test
+        // the wrap would fail, but we've simulated a failing test
         // The important thing is that we sent the challenge and processed the response
         const wasChallengeSet = sentChallenge !== null
         expect(wasChallengeSet).to.equal(true)
@@ -205,9 +205,9 @@ describe('Challenge Response Provider', () => {
         expect(mockStream.close.called).to.be.true()
       })
 
-      it('should have a working isAuthenticated function', () => {
-        // Initially, connection is not authenticated
-        expect(provider.isAuthenticated(connectionId)).to.be.false()
+      it('should have a working isWrapped function', () => {
+        // Initially, connection is not wrapped
+        expect(provider.isWrapped(connectionId)).to.be.false()
       })
     })
   })

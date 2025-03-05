@@ -2,7 +2,7 @@
 /* eslint-disable max-depth */
 import { pipe } from 'it-pipe'
 import { createMiddlewareWrapper } from './middleware-wrapper.js'
-import type { AuthenticationProvider } from './authentication-provider.js'
+import type { MiddlewareProvider } from './authentication-provider.js'
 import type { MiddlewareWrapperOptions } from './middleware-wrapper.js'
 import type { AbortOptions, ComponentLogger, Logger, Startable, StreamHandlerRecord, StreamHandler } from '@libp2p/interface'
 import type { ConnectionManager, Registrar } from '@libp2p/interface-internal'
@@ -10,7 +10,7 @@ import type { ConnectionManager, Registrar } from '@libp2p/interface-internal'
 /**
  * Interface for services that can be protected by authentication
  */
-export interface ProtectedService {
+export interface WrappedService {
   protocol: string
   handleMessage?: StreamHandler
   handleProtocol?: StreamHandler
@@ -29,11 +29,11 @@ export interface ProtectedService {
  */
 export class ProtocolMiddlewareService implements Startable {
   private readonly components: ProtocolMiddlewareServiceComponents
-  private readonly provider: AuthenticationProvider
+  private readonly provider: MiddlewareProvider
   private readonly log: Logger
   private started: boolean
   public readonly services: Map<string, {
-    service: ProtectedService
+    service: WrappedService
     authOptions?: MiddlewareWrapperOptions
   }>
 
@@ -446,25 +446,25 @@ export class ProtocolMiddlewareService implements Startable {
   }
 
   /**
-   * Authenticate a connection using the configured authentication provider
+   * Wrap a connection using the configured middleware provider
    */
-  async authenticate (connectionId: string, options?: AbortOptions): Promise<boolean> {
+  async wrap (connectionId: string, options?: AbortOptions): Promise<boolean> {
     if (!this.started) {
       throw new Error('Protocol middleware service is not started')
     }
 
-    return this.provider.authenticate(connectionId, options)
+    return this.provider.wrap(connectionId, options)
   }
 
   /**
    * Check if a connection is authenticated
    */
-  isAuthenticated (connectionId: string): boolean {
+  isWrapped (connectionId: string): boolean {
     if (!this.started) {
       return false
     }
 
-    return this.provider.isAuthenticated(connectionId)
+    return this.provider.isWrapped(connectionId)
   }
 
   /**
@@ -636,7 +636,7 @@ export class ProtocolMiddlewareService implements Startable {
     }
 
     // Create a wrapped service using provided stream limits (or defaults)
-    const wrappedService: ProtectedService = {
+    const wrappedService: WrappedService = {
       protocol,
       handleMessage,
       maxInboundStreams: service.maxInboundStreams ?? 16,
@@ -730,12 +730,12 @@ export interface ProtocolMiddlewareServiceInit {
   /**
    * Authentication provider to use
    */
-  provider: AuthenticationProvider
+  provider: MiddlewareProvider
 
   /**
    * Services to automatically protect with middleware
    */
-  services?: Record<string, ProtectedService>
+  services?: Record<string, WrappedService>
 
   /**
    * Per-service authentication options
