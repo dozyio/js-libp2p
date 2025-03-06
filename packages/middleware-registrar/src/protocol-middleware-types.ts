@@ -1,21 +1,7 @@
 /**
- * Type definitions for protocol middleware
- */
-
-/**
  * Provider of middleware functionality
  */
-export interface MiddlewareProvider {
-  /**
-   * Unique identifier for this provider
-   */
-  id: string
-
-  /**
-   * Human-readable name for this provider
-   */
-  name: string
-
+export interface Middleware {
   /**
    * Start the provider
    */

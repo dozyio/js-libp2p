@@ -4,18 +4,18 @@ import { expect } from 'aegir/chai'
 import sinon from 'sinon'
 import { middlewareRegistrar, type RegistrarComponents } from '../src/index.js'
 import { mockLogger } from './utils/mock-logger.js'
-import { mockMiddlewareProvider } from './utils/mock-middleware-provider.js'
+import { mockMiddleware } from './utils/mock-middleware.js'
 import { mockRegistrar } from './utils/mock-registrar.js'
 
 describe('Middleware Registrar', () => {
   let components: RegistrarComponents
   let registrar: ReturnType<typeof mockRegistrar>
-  let provider: ReturnType<typeof mockMiddlewareProvider>
+  let provider: ReturnType<typeof mockMiddleware>
   const logger = mockLogger()
 
   beforeEach(() => {
     registrar = mockRegistrar()
-    provider = mockMiddlewareProvider()
+    provider = mockMiddleware()
     components = {
       registrar,
       logger

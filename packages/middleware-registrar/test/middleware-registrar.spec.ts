@@ -2,9 +2,9 @@
 
 import { expect } from 'aegir/chai'
 import sinon from 'sinon'
-import { MiddlewareRegistry } from '../src/middleware-registry.js'
+import { MiddlewareRegistrar } from '../src/middleware-registry.js'
 import { mockLogger } from './utils/mock-logger.js'
-import { mockMiddlewareProvider } from './utils/mock-middleware-provider.js'
+import { mockMiddleware } from './utils/mock-middleware.js'
 import { mockRegistrar } from './utils/mock-registrar.js'
 import type { IncomingStreamData } from '@libp2p/interface'
 
@@ -24,16 +24,16 @@ function createMockStream (): any {
 }
 
 describe('MiddlewareRegistry', () => {
-  let registry: MiddlewareRegistry
+  let registry: MiddlewareRegistrar
   let registrar: ReturnType<typeof mockRegistrar>
-  let provider: ReturnType<typeof mockMiddlewareProvider>
+  let middleware: ReturnType<typeof mockMiddleware>
   const logger = mockLogger()
   const testProtocol = '/test/1.0.0'
 
   beforeEach(() => {
     registrar = mockRegistrar()
-    provider = mockMiddlewareProvider()
-    registry = new MiddlewareRegistry(registrar, provider, logger)
+    middleware = mockMiddleware()
+    registry = new MiddlewareRegistrar(registrar, middleware, logger)
   })
 
   afterEach(() => {
@@ -45,11 +45,11 @@ describe('MiddlewareRegistry', () => {
 
     await registry.start()
     expect(registry.isStarted()).to.be.true()
-    expect(provider.start.callCount).to.equal(1)
+    expect(middleware.start.callCount).to.equal(1)
 
     await registry.stop()
     expect(registry.isStarted()).to.be.false()
-    expect(provider.stop.callCount).to.equal(1)
+    expect(middleware.stop.callCount).to.equal(1)
   })
 
   it('should delegate getProtocols to the underlying registrar', () => {
@@ -90,23 +90,23 @@ describe('MiddlewareRegistry', () => {
     }
 
     // Test when connection is not authenticated
-    provider.isWrapped.returns(false)
-    provider.wrap.resolves(true)
+    middleware.isWrapped.returns(false)
+    middleware.wrap.resolves(true)
 
     wrappedHandler(streamData)
 
-    expect(provider.isWrapped.callCount).to.equal(1)
-    expect(provider.wrap.callCount).to.equal(1)
+    expect(middleware.isWrapped.callCount).to.equal(1)
+    expect(middleware.wrap.callCount).to.equal(1)
 
     // Reset and test when connection is already authenticated
-    provider.isWrapped.reset()
-    provider.wrap.reset()
-    provider.isWrapped.returns(true)
+    middleware.isWrapped.reset()
+    middleware.wrap.reset()
+    middleware.isWrapped.returns(true)
 
     wrappedHandler(streamData)
 
-    expect(provider.isWrapped.callCount).to.equal(1)
-    expect(provider.wrap.callCount).to.equal(0)
+    expect(middleware.isWrapped.callCount).to.equal(1)
+    expect(middleware.wrap.callCount).to.equal(0)
   })
 
   it('should handle middleware failure properly', async () => {
@@ -119,12 +119,12 @@ describe('MiddlewareRegistry', () => {
     const wrappedHandler = registrar.handle.firstCall.args[1]
 
     // Make sure the wrap call is properly set up
-    provider.isWrapped.returns(false)
-    provider.wrap.resolves(false)
+    middleware.isWrapped.returns(false)
+    middleware.wrap.resolves(false)
 
     // This test would abort the stream in a real scenario
-    expect(provider.wrap).to.exist()
-    expect(provider.isWrapped).to.exist()
+    expect(middleware.wrap).to.exist()
+    expect(middleware.isWrapped).to.exist()
   })
 
   it('should unregister handlers and clean up internal state', async () => {

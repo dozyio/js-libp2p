@@ -5,6 +5,7 @@
  * authentication protocol for libp2p protocol middleware.
  */
 
+import { type Middleware } from '@libp2p/middleware-registrar'
 import { MiddlewareChallengeResponse as MiddlewareChallengeResponseClass } from './middleware-challenge-response.js'
 import type { AbortOptions, ComponentLogger } from '@libp2p/interface'
 import type { ConnectionManager, Registrar } from '@libp2p/interface-internal'
@@ -47,7 +48,7 @@ export interface MiddlewareChallengeResponseComponents {
   logger: ComponentLogger
 }
 
-export function middlewareChallengeResponse (init: MiddlewareChallengeResponseInit = {}): (components: MiddlewareChallengeResponseComponents) => MiddlewareChallengeResponse {
+export function middlewareChallengeResponse (init: MiddlewareChallengeResponseInit = {}): (components: MiddlewareChallengeResponseComponents) => Middleware {
   return (components) => new MiddlewareChallengeResponseClass(components, init)
 }
 

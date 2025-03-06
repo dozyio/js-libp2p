@@ -3,10 +3,9 @@
  * A registrar implementation that automatically wraps protocols with middleware
  */
 
-import { MiddlewareRegistry } from './middleware-registry.js'
+import { MiddlewareRegistrar } from './middleware-registry.js'
+import type { Middleware, MiddlewareWrapperOptions } from './protocol-middleware-types.js'
 import type { ComponentLogger } from '@libp2p/interface'
-import type { Registrar } from '@libp2p/interface-internal'
-import type { MiddlewareProvider, MiddlewareWrapperOptions } from './protocol-middleware-types.js'
 
 /**
  * Components required for the middleware registrar
@@ -38,13 +37,13 @@ export interface MiddlewareRegistrarOptions {
  */
 export function middlewareRegistrar (
   components: RegistrarComponents,
-  provider: MiddlewareProvider,
+  middleware: Middleware,
   options: MiddlewareRegistrarOptions = {}
 ): Registrar {
   // Create the middleware registry with the original registrar
-  const registry = new MiddlewareRegistry(
+  const registry = new MiddlewareRegistrar(
     components.registrar,
-    provider,
+    middleware,
     components.logger,
     options.defaultOptions
   )
@@ -59,5 +58,5 @@ export function middlewareRegistrar (
   return registry
 }
 
-export { MiddlewareRegistry }
-export type { MiddlewareProvider, MiddlewareWrapperOptions } from './protocol-middleware-types.js'
+export { MiddlewareRegistrar }
+export type { Middleware, MiddlewareWrapperOptions } from './protocol-middleware-types.js'

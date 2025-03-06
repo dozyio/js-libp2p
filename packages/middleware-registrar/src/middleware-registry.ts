@@ -1,22 +1,22 @@
+import type { Middleware, MiddlewareWrapperOptions } from './protocol-middleware-types.js'
 import type { ComponentLogger, Logger, Startable, StreamHandlerRecord, StreamHandler, StreamHandlerOptions, Topology, IncomingStreamData } from '@libp2p/interface'
 import type { Registrar } from '@libp2p/interface-internal'
-import type { MiddlewareProvider, MiddlewareWrapperOptions } from './protocol-middleware-types.js'
 
 /**
  * A Registrar implementation that automatically wraps protocol handlers with middleware
  */
-export class MiddlewareRegistry implements Registrar, Startable {
+export class MiddlewareRegistrar implements Registrar, Startable {
   private readonly registrar: Registrar
-  private readonly provider: MiddlewareProvider
+  private readonly middleware: Middleware
   private readonly log: Logger
   private readonly wrappedHandlers: Map<string, StreamHandler>
   private readonly handlerOptions: Map<string, MiddlewareWrapperOptions>
   private readonly defaultOptions: MiddlewareWrapperOptions
   private started: boolean
 
-  constructor (registrar: Registrar, provider: MiddlewareProvider, logger: ComponentLogger, defaultOptions: MiddlewareWrapperOptions = {}) {
+  constructor (registrar: Registrar, middleware: Middleware, logger: ComponentLogger, defaultOptions: MiddlewareWrapperOptions = {}) {
     this.registrar = registrar
-    this.provider = provider
+    this.middleware = middleware
     this.log = logger.forComponent('libp2p:middleware-registry')
     this.wrappedHandlers = new Map()
     this.handlerOptions = new Map()
@@ -41,7 +41,7 @@ export class MiddlewareRegistry implements Registrar, Startable {
       return
     }
 
-    await this.provider.start()
+    await this.middleware.start()
     this.started = true
     this.log('Middleware registry started')
   }
@@ -54,7 +54,7 @@ export class MiddlewareRegistry implements Registrar, Startable {
       return
     }
 
-    await this.provider.stop()
+    await this.middleware.stop()
     this.started = false
     this.log('Middleware registry stopped')
   }
@@ -109,12 +109,12 @@ export class MiddlewareRegistry implements Registrar, Startable {
       // Use type assertion to handle the id property which might be missing in some Connection implementations
       const connectionId = (data.connection as any).id
 
-      if (!this.provider.isWrapped(connectionId)) {
+      if (!this.middleware.isWrapped(connectionId)) {
         this.log(`Connection ${connectionId} not authenticated, wrapping with middleware`)
 
         try {
           // Apply middleware to the connection
-          const wrapped = await this.provider.wrap(connectionId)
+          const wrapped = await this.middleware.wrap(connectionId)
 
           if (!wrapped) {
             this.log.error(`Failed to wrap connection ${(data.connection as any).id}, rejecting stream`)
@@ -163,7 +163,7 @@ export class MiddlewareRegistry implements Registrar, Startable {
   }
 
   /**
-   * Get topologies for a protocol
+   * Get registrar topologies
    */
   getTopologies (protocol: string): Topology[] {
     return this.registrar.getTopologies(protocol)
