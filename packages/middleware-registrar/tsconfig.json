@@ -1,11 +1,39 @@
 {
   "extends": "aegir/src/config/tsconfig.aegir.json",
   "compilerOptions": {
-    "outDir": "dist",
-    "skipLibCheck": true
+    "outDir": "dist"
   },
   "include": [
     "src",
     "test"
+  ],
+  "references": [
+    {
+      "path": "../crypto"
+    },
+    {
+      "path": "../interface"
+    },
+    {
+      "path": "../interface-internal"
+    },
+    {
+      "path": "../logger"
+    },
+    {
+      "path": "../multistream-select"
+    },
+    {
+      "path": "../peer-collections"
+    },
+    {
+      "path": "../peer-id"
+    },
+    {
+      "path": "../peer-store"
+    },
+    {
+      "path": "../utils"
+    }
   ]
 }

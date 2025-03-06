@@ -6,6 +6,7 @@
 import { MiddlewareRegistrar } from './middleware-registry.js'
 import type { Middleware, MiddlewareWrapperOptions } from './protocol-middleware-types.js'
 import type { ComponentLogger } from '@libp2p/interface'
+import type { Registrar } from '@libp2p/interface-internal'
 
 /**
  * Components required for the middleware registrar

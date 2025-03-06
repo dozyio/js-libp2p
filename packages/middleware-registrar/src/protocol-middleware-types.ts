@@ -2,6 +2,9 @@
  * Provider of middleware functionality
  */
 export interface Middleware {
+  // protocol string
+  protocol: string
+
   /**
    * Start the provider
    */

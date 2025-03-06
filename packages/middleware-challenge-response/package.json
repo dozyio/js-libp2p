@@ -1,9 +1,9 @@
 {
-  "name": "@libp2p/middleware-auth-challenge",
+  "name": "@libp2p/middleware-challenge-response",
   "version": "1.0.0",
-  "description": "Challenge-response authentication provider for libp2p protocol middleware",
+  "description": "Challenge-response middleware for libp2p",
   "license": "Apache-2.0 OR MIT",
-  "homepage": "https://github.com/libp2p/js-libp2p/tree/main/packages/middleware-auth-challenge#readme",
+  "homepage": "https://github.com/libp2p/js-libp2p/tree/main/packages/middleware-challenge-response#readme",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/libp2p/js-libp2p.git"

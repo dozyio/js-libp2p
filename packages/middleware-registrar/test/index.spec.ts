@@ -10,12 +10,12 @@ import { mockRegistrar } from './utils/mock-registrar.js'
 describe('Middleware Registrar', () => {
   let components: RegistrarComponents
   let registrar: ReturnType<typeof mockRegistrar>
-  let provider: ReturnType<typeof mockMiddleware>
+  let middleware: ReturnType<typeof mockMiddleware>
   const logger = mockLogger()
 
   beforeEach(() => {
     registrar = mockRegistrar()
-    provider = mockMiddleware()
+    middleware = mockMiddleware()
     components = {
       registrar,
       logger
@@ -27,7 +27,7 @@ describe('Middleware Registrar', () => {
   })
 
   it('should create a middleware registry with default options', () => {
-    const registry = middlewareRegistrar(components, provider)
+    const registry = middlewareRegistrar(components, middleware)
 
     expect(registry).to.exist()
     expect((registry as any)[Symbol.toStringTag]).to.equal('@libp2p/middleware-registry')
@@ -40,7 +40,7 @@ describe('Middleware Registrar', () => {
       '/test/2.0.0': { timeout: 1000 }
     }
 
-    const registry = middlewareRegistrar(components, provider, {
+    const registry = middlewareRegistrar(components, middleware, {
       defaultOptions,
       protocolOptions
     })

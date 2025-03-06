@@ -4,8 +4,9 @@ import { toString } from 'uint8arrays/to-string'
 import { CHALLENGE_RESPONSE_PROTOCOL, CHALLENGE_SIZE, MAX_INBOUND_STREAMS, MAX_OUTBOUND_STREAMS, PROTOCOL_NAME, PROTOCOL_PREFIX, PROTOCOL_VERSION, TIMEOUT } from './constants.js'
 import type { MiddlewareChallengeResponseComponents, MiddlewareChallengeResponseInit } from './index.js'
 import type { AbortOptions, Connection, Logger, Startable, Stream } from '@libp2p/interface'
+import type { Middleware } from '@libp2p/middleware-registrar'
 
-export class MiddlewareChallengeResponse implements Startable, MiddlewareChallengeResponse {
+export class MiddlewareChallengeResponse implements Middleware, Startable {
   public readonly protocol: string
   private readonly components: MiddlewareChallengeResponseComponents
   private started: boolean
@@ -27,7 +28,7 @@ export class MiddlewareChallengeResponse implements Startable, MiddlewareChallen
     this.runOnLimitedConnection = init.runOnLimitedConnection ?? true
 
     this.wrappedConnections = new Set<string>()
-    // this.handleMessage = this.handleMessage.bind(this)
+    this.handle = this.handle.bind(this)
   }
 
   readonly [Symbol.toStringTag] = '@libp2p/middleware-challenge-response'
@@ -116,7 +117,7 @@ export class MiddlewareChallengeResponse implements Startable, MiddlewareChallen
         this.log('✓ Challenge sent successfully to client')
       } catch (err: any) {
         this.log('❌ Error sending challenge to client:', err.message)
-        stream.abort(new Error('error'))
+        stream.abort(new Error('Error sending challenge to client'))
         return
       }
 
@@ -127,12 +128,12 @@ export class MiddlewareChallengeResponse implements Startable, MiddlewareChallen
 
         if (new TextDecoder().decode(res.slice()) !== expectedResponse) {
           this.log('❌ response does not match expected:', res, expectedResponse)
-          stream.abort(new Error('error'))
+          stream.abort(new Error('error response does not match expected'))
           return
         }
       } catch (err: any) {
         this.log('❌ Error reading response:', err.message)
-        stream.abort(new Error('error'))
+        stream.abort(new Error('Error reading response'))
         return
       }
 
@@ -145,7 +146,7 @@ export class MiddlewareChallengeResponse implements Startable, MiddlewareChallen
         await stream.close()
       } catch (err: any) {
         this.log('❌ Error sending challenge to client:', err.message)
-        stream.abort(new Error('error'))
+        stream.abort(new Error('Error sending challenge to client'))
       }
     }).catch((err: any) => {
       this.log('Error handling challenge-response request', err)
@@ -203,7 +204,7 @@ export class MiddlewareChallengeResponse implements Startable, MiddlewareChallen
           this.log('✓ Response sent successfully to server')
         } catch (err: any) {
           this.log('❌ Error sending response to server:', err.message)
-          stream.abort(new Error('error'))
+          stream.abort(new Error('Error sending response to server'))
           return false
         }
 
@@ -212,7 +213,7 @@ export class MiddlewareChallengeResponse implements Startable, MiddlewareChallen
           this.log('✓ Read challenge ok')
           // eslint-disable-next-line max-depth
           if (new TextDecoder().decode(isOK.slice()) !== 'OK') {
-            stream.abort(new Error('error'))
+            stream.abort(new Error('reading challenge ok failed'))
             return false
           }
 
@@ -220,15 +221,15 @@ export class MiddlewareChallengeResponse implements Startable, MiddlewareChallen
           await stream.close()
           return true
         } catch (err: any) {
-          this.log('❌ Error sending response to server:', err.message)
-          stream.abort(new Error('error'))
+          this.log('❌ Error reading response from server:', err.message)
+          stream.abort(new Error('Error reading response from server'))
           return false
         }
       } catch (err: any) {
         this.log('❌ Error sending response to server:', err.message)
         // Ensure stream is closed in case of error
         if (stream != null) {
-          stream.abort(new Error('Error'))
+          stream.abort(new Error('Error sending response to server'))
           return false
         }
       }

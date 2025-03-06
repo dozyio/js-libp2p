@@ -1,5 +1,5 @@
 import type { Middleware, MiddlewareWrapperOptions } from './protocol-middleware-types.js'
-import type { ComponentLogger, Logger, Startable, StreamHandlerRecord, StreamHandler, StreamHandlerOptions, Topology, IncomingStreamData } from '@libp2p/interface'
+import type { ComponentLogger, Logger, Startable, StreamHandler, StreamHandlerRecord, StreamHandlerOptions, Topology, IncomingStreamData } from '@libp2p/interface'
 import type { Registrar } from '@libp2p/interface-internal'
 
 /**
@@ -84,6 +84,12 @@ export class MiddlewareRegistrar implements Registrar, Startable {
    * Register a handler with middleware wrapping
    */
   async handle (protocol: string, handler: StreamHandler, options?: StreamHandlerOptions): Promise<void> {
+    if (protocol === this.middleware.protocol) {
+      this.log(`Skipping wrapping of ${protocol}, registering with standard registrar`)
+      await this.registrar.handle(protocol, handler, options)
+      return
+    }
+
     this.log(`Registering handler for ${protocol} with middleware wrapping`)
 
     // Store the original handler
@@ -118,12 +124,12 @@ export class MiddlewareRegistrar implements Registrar, Startable {
 
           if (!wrapped) {
             this.log.error(`Failed to wrap connection ${(data.connection as any).id}, rejecting stream`)
-            data.stream.abort(new Error('Authentication failed'))
+            data.stream.abort(new Error('Middleware failed'))
             return
           }
         } catch (err) {
           this.log.error(`Error wrapping connection ${(data.connection as any).id}: ${err}`)
-          data.stream.abort(new Error('Authentication failed'))
+          data.stream.abort(new Error('Middleware failed'))
           return
         }
       }
