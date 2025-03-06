@@ -2,7 +2,7 @@
 import { defaultLogger } from '@libp2p/logger'
 import { expect } from 'aegir/chai'
 import { lpStream } from 'it-length-prefixed-stream'
-import { pushable } from 'it-pushable'
+import { duplexPair } from 'it-pair/duplex'
 import sinon from 'sinon'
 import { stubInterface, type StubbedInstance } from 'sinon-ts'
 import { fromString } from 'uint8arrays/from-string'
@@ -153,113 +153,65 @@ describe('Challenge Response Middleware', () => {
         expect(mockConnection.newStream.called).to.be.true()
       })
 
-      // Define a simple in‑memory duplex stream type.
-      interface FakeDuplex {
-        source: AsyncIterable<Uint8Array>
-        sink(source: AsyncIterable<Uint8Array>): Promise<void>
-        close?(): Promise<void>
-        abort?(err: Error): void
-      }
+      it('should send a challenge and wait for response using a duplex pair', async () => {
+        // Create a duplex pair.
+        const [clientStream, serverStream] = duplexPair<any>()
 
-      // Create a pair of FakeDuplex endpoints.
-      function createFakeDuplexPair (): { client: FakeDuplex, server: FakeDuplex } {
-        // Create two pushable sources.
-        const clientSource = pushable<Uint8Array>()
-        const serverSource = pushable<Uint8Array>()
-
-        // The client’s sink writes to the server’s source.
-        const client: FakeDuplex = {
-          // Client reads what the server writes.
-          source: serverSource,
-          sink: async (source: AsyncIterable<Uint8Array>) => {
-            for await (const chunk of source) {
-              clientSource.push(chunk)
-            }
-            clientSource.end()
-          },
-          close: async () => {
-            clientSource.end()
-          },
-          abort: (err: Error) => {
-            clientSource.end(err)
-          }
+        // Polyfill a synchronous iterator on each stream's source.
+        const clientSource: any = clientStream.source
+        if (clientSource[Symbol.iterator] == null) {
+          clientSource[Symbol.iterator] = clientSource[Symbol.asyncIterator].bind(clientSource)
+        }
+        const serverSource: any = serverStream.source
+        if (serverSource[Symbol.iterator] == null) {
+          serverSource[Symbol.iterator] = serverSource[Symbol.asyncIterator].bind(serverSource)
         }
 
-        // The server’s sink writes to the client’s source.
-        const server: FakeDuplex = {
-          // Server reads what the client writes.
-          source: clientSource,
-          sink: async (source: AsyncIterable<Uint8Array>) => {
-            for await (const chunk of source) {
-              serverSource.push(chunk)
-            }
-            serverSource.end()
-          },
-          close: async () => {
-            serverSource.end()
-          },
-          abort: (err: Error) => {
-            serverSource.end(err)
-          }
+        // Ensure a "close" method exists.
+        if ((clientStream as any).close == null) {
+          (clientStream as any).close = sinon.stub().resolves()
+        }
+        if ((serverStream as any).close == null) {
+          (serverStream as any).close = sinon.stub().resolves()
         }
 
-        return { client, server }
-      }
-
-      it('should send a challenge and wait for response using a fake duplex pair', async () => {
-        // Create the fake duplex pair.
-        const { client: clientStream, server: serverStream } = createFakeDuplexPair()
-
-        // Polyfill a synchronous iterator on the source for libraries like lpStream.
-        if (!(clientStream.source as any)[Symbol.iterator]) {
-          (clientStream.source as any)[Symbol.iterator] = clientStream.source[Symbol.asyncIterator].bind(clientStream.source)
-        }
-        if (!(serverStream.source as any)[Symbol.iterator]) {
-          (serverStream.source as any)[Symbol.iterator] = serverStream.source[Symbol.asyncIterator].bind(serverStream.source)
-        }
-
-        // Simulate the server behavior.
-        async function simulateServer (): Promise<void> {
-          const lpServer = lpStream(serverStream)
-          const challenge = 'test-challenge'
-          // Send the challenge.
-          await lpServer.write(new TextEncoder().encode(challenge))
-          // Read the client's response.
-          const res = await lpServer.read({ signal: AbortSignal.timeout(1000) })
-          if (!res) throw new Error('Server did not receive a response')
-          const response = new TextDecoder().decode(res.slice())
-          // Calculate the expected response using your middleware's helper.
-          const expectedResponse = await middleware.calculateSha256(challenge)
-          // Send back "OK" if correct, "NO" otherwise.
-          if (response === expectedResponse) {
-            await lpServer.write(new TextEncoder().encode('OK'))
-          } else {
-            await lpServer.write(new TextEncoder().encode('NO'))
-          }
-          if (serverStream.close) await serverStream.close()
-        }
-
-        // Run the simulated server concurrently.
-        simulateServer().catch(err => { console.error('simulateServer error:', err) })
-
-        // Create a fake connection that returns our client stream.
+        // Create a fake connection that returns our clientStream when a new stream is requested.
         const fakeConnection = {
           id: 'test-connection-id',
           remotePeer: { toString: () => 'test-peer-id' },
           newStream: async (_protocol: string, _options?: any) => clientStream
         }
 
-        // Stub the connection manager to return our fake connection.
+        // Stub the connection manager to return the fake connection.
         middleware.components.connectionManager.getConnections = () => [fakeConnection]
-        // Stub the client's close method.
-        clientStream.close = sinon.stub().resolves()
 
-        // Run the middleware's wrap process.
+        // Simulate the server behavior concurrently.
+        async function simulateServer (): Promise<void> {
+          const lpServer = lpStream(serverStream)
+          const challenge = 'test-challenge'
+          // Server sends the challenge.
+          await lpServer.write(new TextEncoder().encode(challenge))
+          // Server reads the client's response.
+          const res = await lpServer.read({ signal: AbortSignal.timeout(1000) })
+
+          const response = new TextDecoder().decode(res.slice())
+          // Inline calculate the expected hash and send back "OK" if it matches.
+          if (response === await middleware.calculateSha256(challenge)) {
+            await lpServer.write(new TextEncoder().encode('OK'))
+          } else {
+            throw new Error('Invalid response')
+          }
+          await (serverStream as any).close()
+        }
+        // eslint-disable-next-line no-console
+        simulateServer().catch(err => { console.error('simulateServer error:', err) })
+
+        // Run the client's wrap (authentication) process.
         const result: boolean = await middleware.wrap('test-connection-id')
-        const expectedResponse: string = await middleware.calculateSha256('test-challenge')
+        // expected hash is calculated in the simulateServer, so no need to store it here
 
         expect(result).to.equal(true)
-        expect((clientStream.close as sinon.SinonStub).called).to.be.true()
+        expect((clientStream as any).close.called).to.be.true()
       })
 
       it('should have a working isWrapped function', () => {
