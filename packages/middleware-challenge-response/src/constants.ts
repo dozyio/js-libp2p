@@ -1,8 +1,8 @@
 export const PROTOCOL_PREFIX = 'libp2p'
-export const PROTOCOL_NAME = 'auth-challenge'
+export const PROTOCOL_NAME = 'challenge-response'
 export const PROTOCOL_VERSION = '1.0.0'
 
-export const AUTH_CHALLENGE_PROTOCOL = `/${PROTOCOL_PREFIX}/${PROTOCOL_NAME}/${PROTOCOL_VERSION}`
+export const CHALLENGE_RESPONSE_PROTOCOL = `/${PROTOCOL_PREFIX}/${PROTOCOL_NAME}/${PROTOCOL_VERSION}`
 
 export const MAX_INBOUND_STREAMS = 1
 export const MAX_OUTBOUND_STREAMS = 1

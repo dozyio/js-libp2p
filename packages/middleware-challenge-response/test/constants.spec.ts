@@ -1,12 +1,12 @@
 /* eslint-env mocha */
 import { expect } from 'aegir/chai'
-import { AUTH_CHALLENGE_PROTOCOL, CHALLENGE_SIZE, MAX_INBOUND_STREAMS, MAX_OUTBOUND_STREAMS, PROTOCOL_NAME, PROTOCOL_PREFIX, PROTOCOL_VERSION, TIMEOUT } from '../src/constants.js'
+import { CHALLENGE_RESPONSE_PROTOCOL, CHALLENGE_SIZE, MAX_INBOUND_STREAMS, MAX_OUTBOUND_STREAMS, PROTOCOL_NAME, PROTOCOL_PREFIX, PROTOCOL_VERSION, TIMEOUT } from '../src/constants.js'
 
 describe('Constants', () => {
   it('should export correctly formed protocol string', () => {
     // Check the protocol string format
-    expect(AUTH_CHALLENGE_PROTOCOL).to.equal(`/${PROTOCOL_PREFIX}/${PROTOCOL_NAME}/${PROTOCOL_VERSION}`)
-    expect(AUTH_CHALLENGE_PROTOCOL).to.match(/^\/[a-z0-9-]+\/[a-z0-9-]+\/\d+\.\d+\.\d+$/)
+    expect(CHALLENGE_RESPONSE_PROTOCOL).to.equal(`/${PROTOCOL_PREFIX}/${PROTOCOL_NAME}/${PROTOCOL_VERSION}`)
+    expect(CHALLENGE_RESPONSE_PROTOCOL).to.match(/^\/[a-z0-9-]+\/[a-z0-9-]+\/\d+\.\d+\.\d+$/)
   })
 
   it('should export stream limits', () => {
