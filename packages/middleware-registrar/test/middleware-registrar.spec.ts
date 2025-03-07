@@ -24,16 +24,17 @@ function createMockStream (): any {
 }
 
 describe('MiddlewareRegistry', () => {
-  let registry: MiddlewareRegistrar
+  let middlewareRegistrar: MiddlewareRegistrar
   let registrar: ReturnType<typeof mockRegistrar>
   let middleware: ReturnType<typeof mockMiddleware>
   const logger = mockLogger()
+  // const decoratorProtocol = '/decorator/1.0.0'
   const testProtocol = '/test/1.0.0'
 
   beforeEach(() => {
     registrar = mockRegistrar()
     middleware = mockMiddleware()
-    registry = new MiddlewareRegistrar(registrar, middleware, logger)
+    middlewareRegistrar = new MiddlewareRegistrar(registrar, middleware, logger)
   })
 
   afterEach(() => {
@@ -41,14 +42,14 @@ describe('MiddlewareRegistry', () => {
   })
 
   it('should start and stop the provider', async () => {
-    expect(registry.isStarted()).to.be.false()
+    expect(middlewareRegistrar.isStarted()).to.be.false()
 
-    await registry.start()
-    expect(registry.isStarted()).to.be.true()
+    await middlewareRegistrar.start()
+    expect(middlewareRegistrar.isStarted()).to.be.true()
     expect(middleware.start.callCount).to.equal(1)
 
-    await registry.stop()
-    expect(registry.isStarted()).to.be.false()
+    await middlewareRegistrar.stop()
+    expect(middlewareRegistrar.isStarted()).to.be.false()
     expect(middleware.stop.callCount).to.equal(1)
   })
 
@@ -56,7 +57,7 @@ describe('MiddlewareRegistry', () => {
     const protocols = ['a', 'b', 'c']
     registrar.getProtocols.returns(protocols)
 
-    expect(registry.getProtocols()).to.deep.equal(protocols)
+    expect(middlewareRegistrar.getProtocols()).to.deep.equal(protocols)
     expect(registrar.getProtocols.callCount).to.equal(1)
   })
 
@@ -64,24 +65,24 @@ describe('MiddlewareRegistry', () => {
     const handler = { handler: () => {}, options: {} }
     registrar.getHandler.returns(handler)
 
-    expect(registry.getHandler(testProtocol)).to.equal(handler)
+    expect(middlewareRegistrar.getHandler(testProtocol)).to.equal(handler)
     expect(registrar.getHandler.callCount).to.equal(1)
     expect(registrar.getHandler.calledWith(testProtocol)).to.be.true()
   })
 
-  it('should wrap handlers with middleware when registered', async () => {
+  it('should decorate handlers with middleware when registered', async () => {
     const originalHandler = function handler (): void {}
     const connection = createMockConnection()
     const stream = createMockStream()
 
     // Register a handler
-    await registry.handle(testProtocol, originalHandler)
+    await middlewareRegistrar.handle(testProtocol, originalHandler)
 
-    // Verify the handler was stored and wrapped
+    // Verify the handler was stored and decorated
     expect(registrar.handle.callCount).to.equal(1)
 
-    // Extract the wrapped handler that was registered
-    const wrappedHandler = registrar.handle.firstCall.args[1]
+    // Extract the decorated handler that was registered
+    const decoratedHandler = registrar.handle.firstCall.args[1]
 
     // Verify the handler checks auth and uses middleware
     const streamData: IncomingStreamData = {
@@ -90,49 +91,49 @@ describe('MiddlewareRegistry', () => {
     }
 
     // Test when connection is not authenticated
-    middleware.isWrapped.returns(false)
-    middleware.wrap.resolves(true)
+    middleware.isDecorated.returns(false)
+    middleware.decorate.resolves(true)
 
-    wrappedHandler(streamData)
+    decoratedHandler(streamData)
 
-    expect(middleware.isWrapped.callCount).to.equal(1)
-    expect(middleware.wrap.callCount).to.equal(1)
+    expect(middleware.isDecorated.callCount).to.equal(1)
+    expect(middleware.decorate.callCount).to.equal(1)
 
     // Reset and test when connection is already authenticated
-    middleware.isWrapped.reset()
-    middleware.wrap.reset()
-    middleware.isWrapped.returns(true)
+    middleware.isDecorated.reset()
+    middleware.decorate.reset()
+    middleware.isDecorated.returns(true)
 
-    wrappedHandler(streamData)
+    decoratedHandler(streamData)
 
-    expect(middleware.isWrapped.callCount).to.equal(1)
-    expect(middleware.wrap.callCount).to.equal(0)
+    expect(middleware.isDecorated.callCount).to.equal(1)
+    expect(middleware.decorate.callCount).to.equal(0)
   })
 
   it('should handle middleware failure properly', async () => {
     const originalHandler = function handler (): void {}
-    const connection = createMockConnection()
+    // const connection = createMockConnection()
 
-    await registry.handle(testProtocol, originalHandler)
+    await middlewareRegistrar.handle(testProtocol, originalHandler)
 
-    // Extract the wrapped handler
-    const wrappedHandler = registrar.handle.firstCall.args[1]
+    // Extract the decorated handler
+    // const decoratedHandler = registrar.handle.firstCall.args[1]
 
-    // Make sure the wrap call is properly set up
-    middleware.isWrapped.returns(false)
-    middleware.wrap.resolves(false)
+    // Make sure the decorate call is properly set up
+    middleware.isDecorated.returns(false)
+    middleware.decorate.resolves(false)
 
     // This test would abort the stream in a real scenario
-    expect(middleware.wrap).to.exist()
-    expect(middleware.isWrapped).to.exist()
+    expect(middleware.decorate).to.exist()
+    expect(middleware.isDecorated).to.exist()
   })
 
   it('should unregister handlers and clean up internal state', async () => {
     const handler = function handler (): void {}
 
     // Register and then unregister a handler
-    await registry.handle(testProtocol, handler)
-    await registry.unhandle(testProtocol)
+    await middlewareRegistrar.handle(testProtocol, handler)
+    await middlewareRegistrar.unhandle(testProtocol)
 
     expect(registrar.unhandle.callCount).to.equal(1)
     expect(registrar.unhandle.firstCall.args[0]).to.equal(testProtocol)
@@ -150,17 +151,17 @@ describe('MiddlewareRegistry', () => {
     registrar.getTopologies.returns(topologies)
 
     // Test register
-    const resultId = await registry.register(testProtocol, topology)
+    const resultId = await middlewareRegistrar.register(testProtocol, topology)
     expect(resultId).to.equal(id)
     expect(registrar.register.callCount).to.equal(1)
 
     // Test unregister
-    registry.unregister(id)
+    middlewareRegistrar.unregister(id)
     expect(registrar.unregister.callCount).to.equal(1)
     expect(registrar.unregister.firstCall.args[0]).to.equal(id)
 
     // Test getTopologies
-    expect(registry.getTopologies(testProtocol)).to.equal(topologies)
+    expect(middlewareRegistrar.getTopologies(testProtocol)).to.equal(topologies)
     expect(registrar.getTopologies.callCount).to.equal(1)
   })
 
@@ -169,10 +170,10 @@ describe('MiddlewareRegistry', () => {
     const options = { required: true }
 
     // Set options for the protocol
-    registry.setProtocolOptions(testProtocol, options)
+    middlewareRegistrar.setProtocolOptions(testProtocol, options)
 
     // Register handler
-    await registry.handle(testProtocol, handler)
+    await middlewareRegistrar.handle(testProtocol, handler)
 
     // We can't easily verify the options are used since they're captured in a closure,
     // but this at least ensures the method doesn't throw errors

@@ -1,35 +1,36 @@
-import type { Middleware, MiddlewareWrapperOptions } from './protocol-middleware-types.js'
+import type { Middleware, MiddlewareDecoratorOptions } from './protocol-middleware-types.js'
 import type { ComponentLogger, Logger, Startable, StreamHandler, StreamHandlerRecord, StreamHandlerOptions, Topology, IncomingStreamData } from '@libp2p/interface'
 import type { Registrar } from '@libp2p/interface-internal'
 
 /**
- * A Registrar implementation that automatically wraps protocol handlers with middleware
+ * A Registrar implementation that decorates protocol handlers with middleware,
+ * and adds them to standard registrar.
  */
 export class MiddlewareRegistrar implements Registrar, Startable {
   private readonly registrar: Registrar
   private readonly middleware: Middleware
   private readonly log: Logger
-  private readonly wrappedHandlers: Map<string, StreamHandler>
-  private readonly handlerOptions: Map<string, MiddlewareWrapperOptions>
-  private readonly defaultOptions: MiddlewareWrapperOptions
+  private readonly decoratedHandlers: Map<string, StreamHandler>
+  private readonly handlerOptions: Map<string, MiddlewareDecoratorOptions>
+  private readonly defaultOptions: MiddlewareDecoratorOptions
   private started: boolean
 
-  constructor (registrar: Registrar, middleware: Middleware, logger: ComponentLogger, defaultOptions: MiddlewareWrapperOptions = {}) {
+  constructor (registrar: Registrar, middleware: Middleware, logger: ComponentLogger, defaultOptions: MiddlewareDecoratorOptions = {}) {
     this.registrar = registrar
     this.middleware = middleware
-    this.log = logger.forComponent('libp2p:middleware-registry')
-    this.wrappedHandlers = new Map()
+    this.log = logger.forComponent('libp2p:middleware-registrar')
+    this.decoratedHandlers = new Map()
     this.handlerOptions = new Map()
     this.defaultOptions = defaultOptions
     this.started = false
   }
 
-  readonly [Symbol.toStringTag] = '@libp2p/middleware-registry'
+  readonly [Symbol.toStringTag] = '@libp2p/middleware-registrar'
 
   /**
    * Set middleware options for a specific protocol
    */
-  setProtocolOptions (protocol: string, options: MiddlewareWrapperOptions): void {
+  setProtocolOptions (protocol: string, options: MiddlewareDecoratorOptions): void {
     this.handlerOptions.set(protocol, options)
   }
 
@@ -81,63 +82,63 @@ export class MiddlewareRegistrar implements Registrar, Startable {
   }
 
   /**
-   * Register a handler with middleware wrapping
+   * Register a handler with middleware decorating
    */
   async handle (protocol: string, handler: StreamHandler, options?: StreamHandlerOptions): Promise<void> {
     if (protocol === this.middleware.protocol) {
-      this.log(`Skipping wrapping of ${protocol}, registering with standard registrar`)
+      this.log(`Skipping decorating ${protocol}, registering with standard registrar`)
       await this.registrar.handle(protocol, handler, options)
       return
     }
 
-    this.log(`Registering handler for ${protocol} with middleware wrapping`)
+    this.log(`Registering handler for ${protocol} with middleware decorator`)
 
     // Store the original handler
-    this.wrappedHandlers.set(protocol, handler)
+    this.decoratedHandlers.set(protocol, handler)
 
-    // Create a wrapped handler that checks the connection's authentication status
-    const wrappedHandler: StreamHandler = (data: IncomingStreamData): void => {
-      void this.wrapAndHandleStream(protocol, handler, data)
+    // Create a decorated handler that checks the connection's status
+    const decoratedHandler: StreamHandler = (data: IncomingStreamData): void => {
+      void this.decorateAndHandleStream(protocol, handler, data)
     }
 
-    // Register the wrapped handler with the original registrar
-    await this.registrar.handle(protocol, wrappedHandler, options)
+    // Register the decorated handler with the original registrar
+    await this.registrar.handle(protocol, decoratedHandler, options)
 
-    this.log(`Successfully registered wrapped handler for ${protocol}`)
+    this.log(`Successfully registered decorated handler for ${protocol}`)
   }
 
   /**
-   * Internal method to apply middleware and handle the stream
+   * Apply middleware and handle the stream
    */
-  private async wrapAndHandleStream (protocol: string, handler: StreamHandler, data: IncomingStreamData): Promise<void> {
+  private async decorateAndHandleStream (protocol: string, handler: StreamHandler, data: IncomingStreamData): Promise<void> {
     try {
-      // Check if the connection is already wrapped/authenticated
+      // Check if the connection has middleware already applied
       // Use type assertion to handle the id property which might be missing in some Connection implementations
       const connectionId = (data.connection as any).id
 
-      if (!this.middleware.isWrapped(connectionId)) {
-        this.log(`Connection ${connectionId} not authenticated, wrapping with middleware`)
+      if (!this.middleware.isDecorated(connectionId)) {
+        this.log(`Applying middleware to connection ${connectionId}`)
 
         try {
           // Apply middleware to the connection
-          const wrapped = await this.middleware.wrap(connectionId)
+          const applied = await this.middleware.decorate(connectionId)
 
-          if (!wrapped) {
-            this.log.error(`Failed to wrap connection ${(data.connection as any).id}, rejecting stream`)
+          if (!applied) {
+            this.log.error(`Failed to apply middleware to connection ${(data.connection as any).id}, rejecting stream`)
             data.stream.abort(new Error('Middleware failed'))
             return
           }
         } catch (err) {
-          this.log.error(`Error wrapping connection ${(data.connection as any).id}: ${err}`)
+          this.log.error(`Error applying middleware to connection ${(data.connection as any).id}: ${err}`)
           data.stream.abort(new Error('Middleware failed'))
           return
         }
       }
 
-      // Connection is wrapped/authenticated, call the original handler
+      // Connection is decorated, call the original handler
       handler(data)
     } catch (err) {
-      this.log.error(`Error in wrapped handler for ${protocol}: ${err}`)
+      this.log.error(`Error in decorated handler for ${protocol}: ${err}`)
       data.stream.abort(err instanceof Error ? err : new Error(String(err)))
     }
   }
@@ -147,7 +148,7 @@ export class MiddlewareRegistrar implements Registrar, Startable {
    */
   async unhandle (protocol: string): Promise<void> {
     // Clean up our handler tracking
-    this.wrappedHandlers.delete(protocol)
+    this.decoratedHandlers.delete(protocol)
     this.handlerOptions.delete(protocol)
 
     // Unregister from the original registrar

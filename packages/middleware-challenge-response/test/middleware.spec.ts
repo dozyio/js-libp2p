@@ -68,8 +68,8 @@ describe('Challenge Response Middleware', () => {
   describe('Middleware factory', () => {
     it('should create a middleware with the correct interface', () => {
       expect(middleware[Symbol.toStringTag]).to.equal('@libp2p/middleware-challenge-response')
-      expect(middleware.wrap).to.be.a('function')
-      expect(middleware.isWrapped).to.be.a('function')
+      expect(middleware.decorate).to.be.a('function')
+      expect(middleware.isDecorated).to.be.a('function')
       expect(middleware.start).to.be.a('function')
       expect(middleware.stop).to.be.a('function')
       expect(middleware.isStarted).to.be.a('function')
@@ -93,20 +93,20 @@ describe('Challenge Response Middleware', () => {
       expect(middleware.start).to.be.a('function')
       expect(middleware.stop).to.be.a('function')
       expect(middleware.isStarted).to.be.a('function')
-      expect(middleware.wrap).to.be.a('function')
-      expect(middleware.isWrapped).to.be.a('function')
+      expect(middleware.decorate).to.be.a('function')
+      expect(middleware.isDecorated).to.be.a('function')
     })
 
     it('should return false for isStarted initially', () => {
       expect(middleware.isStarted()).to.be.false()
     })
 
-    it('should return false for isWrapped', async () => {
-      expect(middleware.isWrapped(connectionId)).to.be.false()
+    it('should return false for isDecorated', async () => {
+      expect(middleware.isDecorated(connectionId)).to.be.false()
     })
 
-    it('should return false for wrap when not started', async () => {
-      const result = await middleware.wrap(connectionId)
+    it('should return false for decorate when not started', async () => {
+      const result = await middleware.decorate(connectionId)
       expect(result).to.be.false()
     })
 
@@ -126,7 +126,7 @@ describe('Challenge Response Middleware', () => {
       })
     })
 
-    describe('wrap', () => {
+    describe('decorate', () => {
       beforeEach(async () => {
         await middleware.start()
       })
@@ -135,7 +135,7 @@ describe('Challenge Response Middleware', () => {
         await middleware.stop()
       })
 
-      it('should open a stream to the remote peer for wrap', async () => {
+      it('should open a stream to the remote peer for decorate', async () => {
         // Set up a simple successful response in the mock stream
         mockStream.source = {
           [Symbol.asyncIterator]: async function * () {
@@ -144,7 +144,7 @@ describe('Challenge Response Middleware', () => {
         }
 
         // Start authentication process
-        const authPromise = middleware.wrap(connectionId)
+        const authPromise = middleware.decorate(connectionId)
 
         // Wait for the promise to resolve
         await authPromise
@@ -206,17 +206,17 @@ describe('Challenge Response Middleware', () => {
         // eslint-disable-next-line no-console
         simulateServer().catch(err => { console.error('simulateServer error:', err) })
 
-        // Run the client's wrap (authentication) process.
-        const result: boolean = await middleware.wrap('test-connection-id')
+        // Run the client's decorate process.
+        const result: boolean = await middleware.decorate('test-connection-id')
         // expected hash is calculated in the simulateServer, so no need to store it here
 
         expect(result).to.equal(true)
         expect((clientStream as any).close.called).to.be.true()
       })
 
-      it('should have a working isWrapped function', () => {
-        // Initially, connection is not wrapped
-        expect(middleware.isWrapped(connectionId)).to.be.false()
+      it('should have a working isDecorated function', () => {
+        // Initially, connection is not decorated
+        expect(middleware.isDecorated(connectionId)).to.be.false()
       })
     })
   })

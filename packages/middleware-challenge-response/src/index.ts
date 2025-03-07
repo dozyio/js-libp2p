@@ -14,8 +14,8 @@ export interface MiddlewareChallengeResponse {
   start(): Promise<void>
   stop(): Promise<void>
   isStarted(): boolean
-  wrap(connectionId: string, options?: AbortOptions): Promise<boolean>
-  isWrapped(connectionId: string): boolean
+  decorate(connectionId: string, options?: AbortOptions): Promise<boolean>
+  isDecorated(connectionId: string): boolean
 }
 
 export interface MiddlewareChallengeResponseInit {

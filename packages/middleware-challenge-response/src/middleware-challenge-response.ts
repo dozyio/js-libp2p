@@ -15,7 +15,7 @@ export class MiddlewareChallengeResponse implements Middleware, Startable {
   private readonly maxOutboundStreams: number
   private readonly runOnLimitedConnection: boolean
   private readonly log: Logger
-  private readonly wrappedConnections: Set<string>
+  private readonly decoratedConnections: Set<string>
 
   constructor (components: MiddlewareChallengeResponseComponents, init: MiddlewareChallengeResponseInit = {}) {
     this.components = components
@@ -27,7 +27,7 @@ export class MiddlewareChallengeResponse implements Middleware, Startable {
     this.maxOutboundStreams = init.maxOutboundStreams ?? MAX_OUTBOUND_STREAMS
     this.runOnLimitedConnection = init.runOnLimitedConnection ?? true
 
-    this.wrappedConnections = new Set<string>()
+    this.decoratedConnections = new Set<string>()
     this.handle = this.handle.bind(this)
   }
 
@@ -80,7 +80,7 @@ export class MiddlewareChallengeResponse implements Middleware, Startable {
       }
     }
 
-    this.wrappedConnections.clear()
+    this.decoratedConnections.clear()
     this.started = false
 
     this.log('Stopped challenge-response auth provider')
@@ -90,10 +90,10 @@ export class MiddlewareChallengeResponse implements Middleware, Startable {
     return this.started
   }
 
-  isWrapped (connectionId: string): boolean {
+  isDecorated (connectionId: string): boolean {
     if (!this.started) return false
 
-    return this.wrappedConnections.has(connectionId)
+    return this.decoratedConnections.has(connectionId)
   }
 
   // Handle inbound challenge-response requests from clients
@@ -138,7 +138,7 @@ export class MiddlewareChallengeResponse implements Middleware, Startable {
       }
 
       try {
-        this.wrappedConnections.add(connection.id)
+        this.decoratedConnections.add(connection.id)
         this.log(`✅ Connection ${connection.id} authenticated successfully, sending OK`)
         await lp.write(new TextEncoder().encode('OK'), { signal: AbortSignal.timeout(this.timeout) })
         this.log('Sent ok to client')
@@ -154,7 +154,7 @@ export class MiddlewareChallengeResponse implements Middleware, Startable {
   }
 
   // Authentication methods
-  async wrap (connectionId: string, abortOptions?: AbortOptions): Promise<boolean> {
+  async decorate (connectionId: string, abortOptions?: AbortOptions): Promise<boolean> {
     this.log('🔒 challenge-response attempt for connection:', connectionId)
 
     if (!this.started) {
@@ -163,7 +163,7 @@ export class MiddlewareChallengeResponse implements Middleware, Startable {
     }
 
     // If already authenticated, return true
-    if (this.wrappedConnections.has(connectionId)) {
+    if (this.decoratedConnections.has(connectionId)) {
       this.log('✅ Connection already authenticated:', connectionId)
       return true
     }
@@ -217,7 +217,7 @@ export class MiddlewareChallengeResponse implements Middleware, Startable {
             return false
           }
 
-          this.wrappedConnections.add(connectionId)
+          this.decoratedConnections.add(connectionId)
           await stream.close()
           return true
         } catch (err: any) {

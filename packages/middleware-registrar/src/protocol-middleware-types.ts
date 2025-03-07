@@ -21,17 +21,17 @@ export interface Middleware {
   isStarted(): boolean
 
   /**
-   * Wrap a connection with middleware
+   * Decorate a connection with middleware
    */
-  wrap(connectionId: string): Promise<boolean>
+  decorate(connectionId: string): Promise<boolean>
 
   /**
-   * Check if a connection is already wrapped
+   * Check if a connection is already decorated
    */
-  isWrapped(connectionId: string): boolean
+  isDecorated(connectionId: string): boolean
 }
 
 /**
- * Options for middleware wrapping
+ * Options for middleware decorator
  */
-export type MiddlewareWrapperOptions = Record<string, any>
+export type MiddlewareDecoratorOptions = Record<string, any>

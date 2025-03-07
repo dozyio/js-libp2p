@@ -30,7 +30,7 @@ describe('Middleware Registrar', () => {
     const registry = middlewareRegistrar(components, middleware)
 
     expect(registry).to.exist()
-    expect((registry as any)[Symbol.toStringTag]).to.equal('@libp2p/middleware-registry')
+    expect((registry as any)[Symbol.toStringTag]).to.equal('@libp2p/middleware-registrar')
   })
 
   it('should create a registry with protocol-specific options', () => {
@@ -46,6 +46,6 @@ describe('Middleware Registrar', () => {
     })
 
     expect(registry).to.exist()
-    expect((registry as any)[Symbol.toStringTag]).to.equal('@libp2p/middleware-registry')
+    expect((registry as any)[Symbol.toStringTag]).to.equal('@libp2p/middleware-registrar')
   })
 })
