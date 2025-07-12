@@ -379,31 +379,20 @@ export class Upgrader implements UpgraderInterface {
     })
   }
 
-  async _runMiddlewareChain (
+  _runMiddlewareChain(
     stream: Stream,
     connection: Connection,
     middleware: StreamMiddleware[],
     log?: Logger
-  ): Promise<{ stream: Stream; connection: Connection }> {
+  ): { stream: Stream; connection: Connection } {
     for (let i = 0; i < middleware.length; i++) {
       const mw = middleware[i]
       log?.trace('running middleware', i, mw)
 
-      // eslint-disable-next-line no-loop-func
-      await new Promise<void>((resolve, reject) => {
-        try {
-          const result = mw(stream, connection, (s, c) => {
-            stream = s
-            connection = c
-            resolve()
-          })
-
-          if (result instanceof Promise) {
-            result.catch(reject)
-          }
-        } catch (err) {
-          reject(err)
-        }
+      // Synchronously invoke middleware; it must call next() before returning
+      mw(stream, connection, (s, c) => {
+        stream = s
+        connection = c
       })
 
       log?.trace('ran middleware', i, mw)
@@ -595,7 +584,7 @@ export class Upgrader implements UpgraderInterface {
             next(stream, connection)
           })
 
-          ;({ stream: muxedStream, connection } = await this._runMiddlewareChain(
+          ;({ stream: muxedStream, connection } = this._runMiddlewareChain(
             muxedStream,
             connection,
             middleware,
@@ -713,14 +702,17 @@ export class Upgrader implements UpgraderInterface {
       return
     }
 
-    this._runMiddlewareChain(stream, connection, middleware, stream.log)
-      .then(({ stream: s, connection: c }) => {
-        handler({ stream: s, connection: c })
-      })
-      .catch(err => {
-        connection.log.error('middleware error for inbound stream %s - %e', stream.id, err)
-        stream.abort(err)
-      })
+    try {
+      const { stream: s, connection: c } = this._runMiddlewareChain(stream, connection, middleware, stream.log)
+      handler({ stream: s, connection: c })
+    } catch (err: any) {
+      connection.log.error(
+        'middleware error for inbound stream %s - %e',
+        stream.id,
+        err
+      )
+      stream.abort(err)
+    }
   }
 
   /**
