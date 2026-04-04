@@ -8,6 +8,8 @@ on:
       - "**"
 
 env:
+  TURBO_CONCURRENCY: 4
+  TURBO_TELEMETRY_DISABLED: 1
   CACHE_DIRS: |
     ./interop/dist
     ./interop/node_modules
