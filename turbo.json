@@ -1,0 +1,108 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "tasks": {
+    "build": {
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        "dist/**",
+        "build/**",
+        "lib/**"
+      ]
+    },
+    "generate": {
+      "dependsOn": [
+        "^generate"
+      ],
+      "outputs": [
+        "generated/**",
+        "src/generated/**"
+      ]
+    },
+    "lint": {
+      "dependsOn": [
+        "^lint"
+      ],
+      "outputs": []
+    },
+    "dep-check": {
+      "outputs": []
+    },
+    "doc-check": {
+      "outputs": []
+    },
+    "test": {
+      "dependsOn": [
+        "build"
+      ],
+      "cache": false
+    },
+    "test:node": {
+      "dependsOn": [
+        "build"
+      ],
+      "outputs": []
+    },
+    "test:chrome": {
+      "dependsOn": [
+        "build"
+      ],
+      "outputs": []
+    },
+    "test:chrome-webworker": {
+      "dependsOn": [
+        "build"
+      ],
+      "outputs": []
+    },
+    "test:firefox": {
+      "dependsOn": [
+        "build"
+      ],
+      "outputs": []
+    },
+    "test:firefox-webworker": {
+      "dependsOn": [
+        "build"
+      ],
+      "outputs": []
+    },
+    "test:electron-main": {
+      "dependsOn": [
+        "build"
+      ],
+      "outputs": []
+    },
+    "test:webkit": {
+      "dependsOn": [
+        "build"
+      ],
+      "outputs": []
+    },
+    "test:cli": {
+      "dependsOn": [
+        "build"
+      ],
+      "outputs": []
+    },
+    "test:interop": {
+      "dependsOn": [
+        "build"
+      ],
+      "cache": false
+    },
+    "coverage": {
+      "dependsOn": [
+        "build"
+      ],
+      "cache": false,
+      "outputs": [
+        "coverage/**"
+      ]
+    },
+    "clean": {
+      "cache": false
+    }
+  }
+}

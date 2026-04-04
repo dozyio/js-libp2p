@@ -5,16 +5,17 @@ on:
       - main
   pull_request:
     branches:
-      - '**'
+      - "**"
 
 env:
+  TURBO_CONCURRENCY: 4
+  TURBO_TELEMETRY_DISABLED: 1
   CACHE_DIRS: |
     ./interop/dist
     ./interop/node_modules
     ./doc/node_modules
 
 jobs:
-
   build:
     runs-on: ubuntu-latest
     steps:
@@ -22,9 +23,18 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: lts/*
+          package-manager-cache: false
       - uses: ipfs/aegir/actions/cache-node-modules@main
         with:
           directories: ${{ env.CACHE_DIRS }}
+      - name: Cache turbo build setup
+        uses: actions/cache@v5
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
+      - run: npm run build
 
   check:
     needs: build
@@ -34,9 +44,17 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: lts/*
+          package-manager-cache: false
       - uses: ipfs/aegir/actions/cache-node-modules@main
         with:
           directories: ${{ env.CACHE_DIRS }}
+      - name: Cache turbo build setup
+        uses: actions/cache@v5
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
       - run: npm run --if-present lint
       - run: npm run --if-present dep-check
       - run: npm run --if-present docs:no-publish
@@ -57,9 +75,17 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node }}
+          package-manager-cache: false
       - uses: ipfs/aegir/actions/cache-node-modules@main
         with:
           directories: ${{ env.CACHE_DIRS }}
+      - name: Cache turbo build setup
+        uses: actions/cache@v5
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
       - run: npm run --if-present test:node
       - uses: codecov/codecov-action@18283e04ce6e62d37312384ff67231eb8fd56d24 # v5.4.3
         with:
@@ -75,9 +101,17 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: lts/*
+          package-manager-cache: false
       - uses: ipfs/aegir/actions/cache-node-modules@main
         with:
           directories: ${{ env.CACHE_DIRS }}
+      - name: Cache turbo build setup
+        uses: actions/cache@v5
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
       - run: npm run --if-present test:chrome
       - uses: codecov/codecov-action@18283e04ce6e62d37312384ff67231eb8fd56d24 # v5.4.3
         with:
@@ -93,9 +127,17 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: lts/*
+          package-manager-cache: false
       - uses: ipfs/aegir/actions/cache-node-modules@main
         with:
           directories: ${{ env.CACHE_DIRS }}
+      - name: Cache turbo build setup
+        uses: actions/cache@v5
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
       - run: npm run --if-present test:chrome-webworker
       - uses: codecov/codecov-action@18283e04ce6e62d37312384ff67231eb8fd56d24 # v5.4.3
         with:
@@ -111,9 +153,17 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: lts/*
+          package-manager-cache: false
       - uses: ipfs/aegir/actions/cache-node-modules@main
         with:
           directories: ${{ env.CACHE_DIRS }}
+      - name: Cache turbo build setup
+        uses: actions/cache@v5
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
       - run: npm run --if-present test:firefox
       - uses: codecov/codecov-action@18283e04ce6e62d37312384ff67231eb8fd56d24 # v5.4.3
         with:
@@ -129,9 +179,17 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: lts/*
+          package-manager-cache: false
       - uses: ipfs/aegir/actions/cache-node-modules@main
         with:
           directories: ${{ env.CACHE_DIRS }}
+      - name: Cache turbo build setup
+        uses: actions/cache@v5
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
       - run: npm run --if-present test:firefox-webworker
       - uses: codecov/codecov-action@18283e04ce6e62d37312384ff67231eb8fd56d24 # v5.4.3
         with:
@@ -147,9 +205,17 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: lts/*
+          package-manager-cache: false
       - uses: ipfs/aegir/actions/cache-node-modules@main
         with:
           directories: ${{ env.CACHE_DIRS }}
+      - name: Cache turbo build setup
+        uses: actions/cache@v5
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
       # https://github.com/actions/runner-images/issues/9733#issuecomment-2074590278
       - run: |
           sudo rm /etc/apt/sources.list.d/microsoft-prod.list
@@ -170,9 +236,17 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: lts/*
+          package-manager-cache: false
       - uses: ipfs/aegir/actions/cache-node-modules@main
         with:
           directories: ${{ env.CACHE_DIRS }}
+      - name: Cache turbo build setup
+        uses: actions/cache@v5
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
       - run: npx xvfb-maybe npm run --if-present test:electron-main
       - uses: codecov/codecov-action@18283e04ce6e62d37312384ff67231eb8fd56d24 # v5.4.3
         with:
@@ -188,9 +262,17 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: lts/*
+          package-manager-cache: false
       - uses: ipfs/aegir/actions/cache-node-modules@main
         with:
           directories: ${{ env.CACHE_DIRS }}
+      - name: Cache turbo build setup
+        uses: actions/cache@v5
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
       - run: npx xvfb-maybe npm run --if-present test:electron-renderer
       - uses: codecov/codecov-action@18283e04ce6e62d37312384ff67231eb8fd56d24 # v5.4.3
         with:
@@ -206,9 +288,17 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: lts/*
+          package-manager-cache: false
       - uses: ipfs/aegir/actions/cache-node-modules@main
         with:
           directories: ${{ env.CACHE_DIRS }}
+      - name: Cache turbo build setup
+        uses: actions/cache@v5
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
       - run: npm run test:interop -- --bail
 
   # transport-interop:
@@ -223,6 +313,7 @@ jobs:
   #     - uses: actions/setup-node@v6
   #       with:
   #         node-version: lts/*
+  #         package-manager-cache: false
   #     - uses: ipfs/aegir/actions/cache-node-modules@main
   #       with:
   #        directories: ${{ env.CACHE_DIRS }}
@@ -248,16 +339,16 @@ jobs:
   release:
     runs-on: ubuntu-latest
     needs: [
-      test-node,
-      test-chrome,
-      test-chrome-webworker,
-      test-firefox,
-      test-firefox-webworker,
-      test-electron-main,
-      test-electron-renderer,
-      test-interop
-      # transport-interop
-    ]
+        test-node,
+        test-chrome,
+        test-chrome-webworker,
+        test-firefox,
+        test-firefox-webworker,
+        test-electron-main,
+        test-electron-renderer,
+        test-interop,
+        # transport-interop
+      ]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: write
@@ -279,10 +370,18 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: lts/*
-          registry-url: 'https://registry.npmjs.org'
+          registry-url: "https://registry.npmjs.org"
+          package-manager-cache: false
       - uses: ipfs/aegir/actions/cache-node-modules@main
         with:
           directories: ${{ env.CACHE_DIRS }}
+      - name: Cache turbo build setup
+        uses: actions/cache@v5
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
       - uses: ipfs/aegir/actions/docker-login@main
         with:
           docker-token: ${{ secrets.DOCKER_TOKEN }}
@@ -298,8 +397,8 @@ jobs:
       - if: ${{ steps.release.outputs.releases_created != 'true' }}
         name: Run release rc
         run: |
-            git update-index --assume-unchanged packages/libp2p/src/version.ts
-            npm run --if-present release:rc
+          git update-index --assume-unchanged packages/libp2p/src/version.ts
+          npm run --if-present release:rc
         env:
           GITHUB_TOKEN: ${{ github.token }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
