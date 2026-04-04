@@ -12,7 +12,6 @@
     "url": "https://github.com/libp2p/js-libp2p/issues"
   },
   "private": true,
-  "packageManager": "npm@11.9.0",
   "scripts": {
     "reset": "aegir run clean && aegir clean interop/node_modules packages/*/node_modules node_modules package-lock.json packages/*/package-lock.json interop/*/package-lock.json",
     "test": "npm run test:node --",
