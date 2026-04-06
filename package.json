@@ -15,7 +15,7 @@
   "packageManager": "npm@11.9.0",
   "scripts": {
     "reset": "aegir run clean && aegir clean interop/node_modules packages/*/node_modules node_modules package-lock.json packages/*/package-lock.json interop/*/package-lock.json",
-    "test": "npm run test:node --",
+    "test": "sh -c 'turbo run test --filter=./packages/* -- --build=false --types=false \"$@\"' --",
     "test:node": "sh -c 'turbo run test:node -- --build=false --types=false \"$@\"' --",
     "test:chrome": "sh -c 'turbo run test:chrome -- --build=false --types=false \"$@\"' --",
     "test:chrome-webworker": "sh -c 'turbo run test:chrome-webworker -- --build=false --types=false \"$@\"' --",
